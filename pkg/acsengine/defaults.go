@@ -148,6 +148,29 @@ var (
 			api.RHEL: DefaultRHELOSImageConfig,
 		},
 	}
+
+	//AzureStackCloudSpec is the default configurations for global azure.
+	AzureStackCloudSpec = AzureEnvironmentSpecConfig{
+		//DockerSpecConfig specify the docker engine download repo
+		DockerSpecConfig: DefaultDockerSpecConfig,
+		//KubernetesSpecConfig is the default kubernetes container image url.
+		KubernetesSpecConfig: DefaultKubernetesSpecConfig,
+		DCOSSpecConfig:       DefaultDCOSSpecConfig,
+
+		EndpointConfig: AzureEndpointConfig{
+			ResourceManagerVMDNSSuffix: "cloudapp.azurestack.external",
+		},
+
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: {
+				ImageOffer:     "UbuntuServer",
+				ImageSku:       "16.04-LTS",
+				ImagePublisher: "Canonical",
+				ImageVersion:   "16.04.201711072",
+			},
+			api.RHEL: DefaultRHELOSImageConfig,
+		},
+	}
 )
 
 // SetPropertiesDefaults for the container Properties, returns true if certs are generated
@@ -176,8 +199,8 @@ func SetPropertiesDefaults(cs *api.ContainerService) (bool, error) {
 func setOrchestratorDefaults(cs *api.ContainerService) {
 	location := cs.Location
 	a := cs.Properties
+	cloudSpecConfig := GetCloudSpecConfig(location, a)
 
-	cloudSpecConfig := GetCloudSpecConfig(location)
 	if a.OrchestratorProfile == nil {
 		return
 	}
@@ -272,7 +295,7 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 
 		// default etcd version
 		if "" == o.KubernetesConfig.EtcdVersion {
-			o.KubernetesConfig.EtcdVersion = "2.5.2"
+			o.KubernetesConfig.EtcdVersion = "2.2.5"
 		}
 
 		if "" == a.OrchestratorProfile.KubernetesConfig.TillerCPURequests {
@@ -433,7 +456,7 @@ func setDefaultCerts(a *api.Properties) (bool, error) {
 		return false, nil
 	}
 
-	masterExtraFQDNs := FormatAzureProdFQDNs(a.MasterProfile.DNSPrefix)
+	masterExtraFQDNs := FormatAzureProdFQDNs(a.MasterProfile.DNSPrefix, a)
 	firstMasterIP := net.ParseIP(a.MasterProfile.FirstConsecutiveStaticIP).To4()
 
 	if firstMasterIP == nil {
@@ -549,4 +572,12 @@ func getFirstConsecutiveStaticIPAddress(subnetStr string) string {
 	subnet.IP[lastOctet] = DefaultKubernetesFirstConsecutiveStaticIPOffset
 
 	return subnet.IP.String()
+}
+
+func getCloudProfileName(properties *api.Properties) string {
+	var cloudProfileName string = ""
+	if properties.CloudProfile != nil {
+		cloudProfileName = properties.CloudProfile.Name
+	}
+	return cloudProfileName
 }

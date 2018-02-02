@@ -1,13 +1,37 @@
 #cloud-config
 
-packages:
-{{if not .OrchestratorProfile.IsCustomEtcdVersion}}
- - etcd
-{{end}}
- - jq
- - traceroute
-
 write_files:
+- path: "/etc/kubernetes/azurestackcloud.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+   {
+      "name": "{{WrapAsVariable "cloudprofileName"}}",
+      "managementPortalURL": "{{WrapAsVariable "cloudprofileManagementPortalURL"}}",
+      "publishSettingsURL": "{{WrapAsVariable "cloudprofilePublishSettingsURL"}}",
+      "serviceManagementEndpoint": "{{WrapAsVariable "cloudprofileServiceManagementEndpoint"}}",
+      "resourceManagerEndpoint": "{{WrapAsVariable "cloudprofileResourceManagerEndpoint"}}",
+      "activeDirectoryEndpoint": "{{WrapAsVariable "cloudprofileActiveDirectoryEndpoint"}}",
+      "galleryEndpoint": "{{WrapAsVariable "cloudprofileGalleryEndpoint"}}",
+      "keyVaultEndpoint": "{{WrapAsVariable "cloudprofileKeyVaultEndpoint"}}",
+      "graphEndpoint": "{{WrapAsVariable "cloudprofileGraphEndpoint"}}",
+      "storageEndpointSuffix": "{{WrapAsVariable "cloudprofileStorageEndpointSuffix"}}",
+      "sQLDatabaseDNSSuffix": "{{WrapAsVariable "cloudprofileSQLDatabaseDNSSuffix"}}",
+      "trafficManagerDNSSuffix": "{{WrapAsVariable "cloudprofileTrafficManagerDNSSuffix"}}",
+      "keyVaultDNSSuffix": "{{WrapAsVariable "cloudprofileKeyVaultDNSSuffix"}}",
+      "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
+      "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
+      "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
+      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}"
+    }
+
+- path: "/usr/local/share/ca-certificates/azurestack.crt"
+  permissions: "0644"
+  encoding: "base64"
+  owner: "root"
+  content: |
+    {{WrapAsVariable "cloudprofileResourceManagerRootCertificate"}}
+
 - path: "/etc/systemd/system/docker.service.d/clear_mount_propagation_flags.conf"
   permissions: "0644"
   owner: "root"
@@ -324,7 +348,6 @@ write_files:
   content: !!binary |
     {{WrapAsVariable "mountetcdScript"}}
 
-{{if .OrchestratorProfile.IsCustomEtcdVersion}}
 - path: "/etc/systemd/system/etcd.service"
   permissions: "0644"
   owner: "root"
@@ -349,58 +372,39 @@ write_files:
     WantedBy=multi-user.target
     Alias=etcd.service
 
-- path: "/opt/azure/containers/setup-etcd.sh"
+- path: "/opt/azure/containers/preprovision.sh"
   permissions: "0744"
   owner: "root"
   content: |
-    #!/bin/bash
-    # if provisioning using any etcd version other than 2.5.2
-    # We download it and set it up here 
-    set -x
-    ETCD_VER=v{{ .OrchestratorProfile.KubernetesConfig.EtcdVersion }}
-    DOWNLOAD_URL=https://acs-mirror.azureedge.net/github-coreos # we use mirror to github
-    mkdir -p /tmp/etcd-download
-    curl -L ${DOWNLOAD_URL}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
-    tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /usr/bin/ --strip-components=1
-    #create etcd user
-    useradd -U "etcd"
-    usermod -p "$(head -c 32 /dev/urandom | base64)" "etcd"
-    passwd -u "$etcd" > /dev/null
-    # update systemctl and start service
-    systemctl daemon-reload 
-    systemctl enable etcd.service
-{{end}}
+    sudo apt-get -y install etcd
+    sudo apt-get -y install jq
+    sudo apt-get -y install traceroute
+    /bin/echo DAEMON_ARGS=--name "{{WrapAsVerbatim "variables('masterVMNames')[copyIndex(variables('masterOffset'))]"}}" --initial-advertise-peer-urls "{{WrapAsVerbatim "variables('masterEtcdPeerURLs')[copyIndex(variables('masterOffset'))]"}}" --listen-peer-urls "{{WrapAsVerbatim "variables('masterEtcdPeerURLs')[copyIndex(variables('masterOffset'))]"}}" --advertise-client-urls "{{WrapAsVerbatim "variables('masterEtcdClientURLs')[copyIndex(variables('masterOffset'))]"}}" --listen-client-urls "{{WrapAsVerbatim "concat(variables('masterEtcdClientURLs')[copyIndex(variables('masterOffset'))], ',http://127.0.0.1:', variables('masterEtcdClientPort'))"}}" --initial-cluster-token "k8s-etcd-cluster" --initial-cluster "{{WrapAsVerbatim "variables('masterEtcdClusterStates')[div(variables('masterCount'), 2)]"}} --data-dir "/var/lib/etcddisk"" --initial-cluster-state "new" | tee -a /etc/default/etcd
+    sudo /bin/chown -R etcd:etcd /var/lib/etcd/default
+    /opt/azure/containers/mountetcd.sh
+    sudo /bin/chown -R etcd:etcd /var/lib/etcddisk
+    systemctl stop etcd
+    sudo -u etcd rm -rf /var/lib/etcd/default
+    sudo /bin/sed -i s/Restart=on-abnormal/Restart=always/g /lib/systemd/system/etcd.service
+    systemctl daemon-reload
+    systemctl restart etcd
+    for i in $(seq 1 20); do curl --max-time 60 http://127.0.0.1:2379/v2/machines; [ $? -eq 0 ] && break || sleep 5; done
+    retrycmd_if_failure() { for i in 1 2 3 4 5; do $@; [ $? -eq 0  ] && break || sleep 5; done ; }
+    retrycmd_if_failure apt-get update
+    retrycmd_if_failure apt-get install -y apt-transport-https ca-certificates
+    retrycmd_if_failure curl --max-time 60 -fsSL https://aptdocker.azureedge.net/gpg | apt-key add -
+    echo "deb {{WrapAsVariable "dockerEngineDownloadRepo"}} ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
+    "echo \"Package: docker-engine\nPin: version {{WrapAsVariable "dockerEngineVersion"}}\nPin-Priority: 550\n\" > /etc/apt/preferences.d/docker.pref"
+    retrycmd_if_failure apt-get update
+    retrycmd_if_failure apt-get install -y ebtables
+    retrycmd_if_failure apt-get install -y docker-engine
+    systemctl restart docker
+    mkdir -p /etc/kubernetes/manifests
+    usermod -aG docker {{WrapAsVariable "username"}}
+    /usr/lib/apt/apt.systemd.daily
+    {{if .OrchestratorProfile.KubernetesConfig.EnableAggregatedAPIs}}
+    sudo bash /etc/kubernetes/generate-proxy-certs.sh
+    {{end}}
 
-runcmd: 
-{{ if .OrchestratorProfile.IsCustomEtcdVersion }}
-- /opt/azure/containers/setup-etcd.sh
-{{end}}
-- apt-mark hold walinuxagent {{GetKubernetesMasterPreprovisionYaml}}
-- /bin/echo DAEMON_ARGS=--name "{{WrapAsVerbatim "variables('masterVMNames')[copyIndex(variables('masterOffset'))]"}}" --initial-advertise-peer-urls "{{WrapAsVerbatim "variables('masterEtcdPeerURLs')[copyIndex(variables('masterOffset'))]"}}" --listen-peer-urls "{{WrapAsVerbatim "variables('masterEtcdPeerURLs')[copyIndex(variables('masterOffset'))]"}}" --advertise-client-urls "{{WrapAsVerbatim "variables('masterEtcdClientURLs')[copyIndex(variables('masterOffset'))]"}}" --listen-client-urls "{{WrapAsVerbatim "concat(variables('masterEtcdClientURLs')[copyIndex(variables('masterOffset'))], ',http://127.0.0.1:', variables('masterEtcdClientPort'))"}}" --initial-cluster-token "k8s-etcd-cluster" --initial-cluster "{{WrapAsVerbatim "variables('masterEtcdClusterStates')[div(variables('masterCount'), 2)]"}} --data-dir "/var/lib/etcddisk"" --initial-cluster-state "new" | tee -a /etc/default/etcd
-- sudo /bin/chown -R etcd:etcd /var/lib/etcd/default
-- /opt/azure/containers/mountetcd.sh
-- sudo /bin/chown -R etcd:etcd /var/lib/etcddisk
-- systemctl stop etcd
-- sudo -u etcd rm -rf /var/lib/etcd/default
-- sudo /bin/sed -i s/Restart=on-abnormal/Restart=always/g /lib/systemd/system/etcd.service
-- systemctl daemon-reload
-- systemctl restart etcd
-- for i in $(seq 1 20); do curl --max-time 60 http://127.0.0.1:2379/v2/machines; [ $? -eq 0 ] && break || sleep 5; done
-- retrycmd_if_failure() { for i in 1 2 3 4 5; do $@; [ $? -eq 0  ] && break || sleep 5; done ; }
-- retrycmd_if_failure apt-get update
-- retrycmd_if_failure apt-get install -y apt-transport-https ca-certificates
-- retrycmd_if_failure curl --max-time 60 -fsSL https://aptdocker.azureedge.net/gpg | apt-key add -
-- echo "deb {{WrapAsVariable "dockerEngineDownloadRepo"}} ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
-- "echo \"Package: docker-engine\nPin: version {{WrapAsVariable "dockerEngineVersion"}}\nPin-Priority: 550\n\" > /etc/apt/preferences.d/docker.pref"
-- retrycmd_if_failure apt-get update
-- retrycmd_if_failure apt-get install -y ebtables
-- retrycmd_if_failure apt-get install -y docker-engine
-- systemctl restart docker
-- mkdir -p /etc/kubernetes/manifests
-- usermod -aG docker {{WrapAsVariable "username"}}
-- /usr/lib/apt/apt.systemd.daily
-{{if .OrchestratorProfile.KubernetesConfig.EnableAggregatedAPIs}}
-- sudo bash /etc/kubernetes/generate-proxy-certs.sh
-{{end}}
-- apt-mark unhold walinuxagent
+runcmd:
 - touch /opt/azure/containers/runcmd.complete

@@ -604,6 +604,7 @@ func mainInternal() error {
 		case "ukwest": // no D2V2 capacity
 		case "southcentralus": // no D2V2 capacity
 		case "northcentralus": // no D2V2 capacity
+		case "local": // private cloud
 		default:
 			regions = append(regions, region)
 		}

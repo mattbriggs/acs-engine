@@ -36,6 +36,13 @@ ensureRunCommandCompleted()
     done
 }
 
+ensureCertificates()
+{
+    echo "Updating certificates"
+	sudo cp /etc/kubernetes/certs/apiserver.crt /usr/local/share/ca-certificates/
+	update-ca-certificates
+}
+
 echo `date`,`hostname`, startscript>>/opt/m 
 
 # A delay to start the kubernetes processes is necessary
@@ -116,6 +123,13 @@ EOF
 ###########################################################
 
 set -x
+
+function runPreProvisionScript() {
+    echo "starting pre-provisioning script"
+    sudo dpkg --configure -a
+    sudo bash /opt/azure/containers/preprovision.sh
+    echo "ending pre-provisioning script"
+}
 
 # wait for kubectl to report successful cluster health
 function ensureKubectl() {
@@ -384,6 +398,16 @@ users:
     set -x
 }
 
+ensureRunCommandCompleted
+echo `date`,`hostname`, RunCmdCompleted>>/opt/m 
+
+# make sure walinuxagent doesn't get updated in the middle of running this script
+apt-mark hold walinuxagent
+
+# make all the pre provisioning steps done before kubernetes deployment
+runPreProvisionScript
+apt-mark unhold walinuxagent
+
 # master and node
 echo `date`,`hostname`, EnsureDockerStart>>/opt/m 
 ensureDocker
@@ -399,8 +423,7 @@ echo `date`,`hostname`, ensureJournalStart>>/opt/m
 ensureJournal
 echo `date`,`hostname`, ensureJournalDone>>/opt/m 
 
-ensureRunCommandCompleted
-echo `date`,`hostname`, RunCmdCompleted>>/opt/m 
+ensureCertificates
 
 # make sure walinuxagent doesn't get updated in the middle of running this script
 apt-mark hold walinuxagent

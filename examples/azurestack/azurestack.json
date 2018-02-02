@@ -1,0 +1,61 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.7",
+	    "kubernetesConfig": {
+        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:0.9008"
+      }
+    },
+	  "cloudProfile": {
+	      "name": "AzureStackCloud",
+        "managementPortalURL": "",
+        "publishSettingsURL": "",
+        "serviceManagementEndpoint": "https://management.azurestackci12.onmicrosoft.com/7ce997b3-7bc8-4990-b8ce-af382be978e9",
+        "resourceManagerEndpoint": "https://management.local.azurestack.external",
+        "activeDirectoryEndpoint": "https://login.windows.net/",
+        "galleryEndpoint": "https://portal.local.azurestack.external:30015/",
+        "keyVaultEndpoint": "https://vault.local.azurestack.external",
+        "graphEndpoint": "https://graph.windows.net/",
+        "storageEndpointSuffix": "local.azurestack.external",
+        "sqlDatabaseDNSSuffix": "",
+        "trafficManagerDNSSuffix": "",
+        "keyVaultDNSSuffix": "vault.local.azurestack.external",
+        "serviceBusEndpointSuffix": "",
+        "serviceManagementVMDNSSuffix": "cloudapp.net",
+        "resourceManagerVMDNSSuffix": "cloudapp.azurestack.external",
+        "containerRegistryDNSSuffix": "",
+        "resourceManagerRootCertificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tDQpNSUlEbHpDQ0FuK2dBd0lCQWdJUVgxNFR4NXVsQ0xWUHpDbVY2NWxNUnpBTkJna3Foa2lHOXcwQkFRc0ZBREJlDQpNUlV3RXdZS0NaSW1pWlB5TEdRQkdSWUZiRzlqWVd3eEdqQVlCZ29Ka2lhSmsvSXNaQUVaRmdwaGVuVnlaWE4wDQpZV05yTVNrd0p3WURWUVFERXlCQmVuVnlaVk4wWVdOclEyVnlkR2xtYVdOaGRHbHZia0YxZEdodmNtbDBlVEFlDQpGdzB4T0RBeE1qSXdOek0wTXpSYUZ3MHlNekF4TWpJd056UTBNelJhTUY0eEZUQVRCZ29Ka2lhSmsvSXNaQUVaDQpGZ1ZzYjJOaGJERWFNQmdHQ2dtU0pvbVQ4aXhrQVJrV0NtRjZkWEpsYzNSaFkyc3hLVEFuQmdOVkJBTVRJRUY2DQpkWEpsVTNSaFkydERaWEowYVdacFkyRjBhVzl1UVhWMGFHOXlhWFI1TUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGDQpBQU9DQVE4QU1JSUJDZ0tDQVFFQW1yY1lQd2ZrUmg1b2VzNHRFaWlweVRuNWpESlJpN0JhZk55czMzZDczSDJ2DQpSeUQyRWRBbFBxdW5KODd1VGJWK1VJMUpIbFcyYnYya1pMSEFvejl2U3lxQlUrdGgwZkI2VnZLSlhjeEZsQVRYDQpJZElMZE4vbmRHeXM1L2lnT24ybDBNNk50WVMwWS9FUDRrVUZZbGZmVWI4VXlQUmtlcFgyOUQybFB4aVZHMEVBDQp3T3g0elA3ektHMXIvUFZ0ZCtuZWpDSU8vZVIrOGF4RGJXdE5DWFlkL2VvcXNjYTJNTnN3eDZMWUJ1NnlrNm1kDQo1RFlYaHlOS1FMMVR4em9iRmJibG1sUFF6cGhwWDdGakVuQ1NScks2RXdNYndtL0VYeEcvOGIvQXRJamZaWnVuDQpXWVcwMWY3cHJ5VS9RVVdKdGx4Tm5qRGZXaEpjTEgyVGJKR05rbEZwU1FJREFRQUJvMUV3VHpBTEJnTlZIUThFDQpCQU1DQVlZd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVXR4bU9tam9RVzRlWk5NVEhoYVNoDQp5Tjl1NU5Fd0VBWUpLd1lCQkFHQ054VUJCQU1DQVFBd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFDdUhCUFlaDQpOREhVTFBHZU9GVXl2RWt6Tjl6VldOSENEMFRDdHFGN3B5Rlk2TVd5K3UwSEZGMG12S3F6UjNpQ3MydGs0MkQ5DQpPMTZvaWJ5UnBNbXhMY1NGeEtDelZpOGsvVzdibnc3eHNMaThOdlBmaWpobExyb3VsNmJaVi9ka2oyYTF3bVF6DQoweUsxbUdOeDB3RnJ5K05rT2tXdUhJYzJ6dDdVRTZDbE4vTStnNG5OYjlzcmd6WGdSNXRkcVhSRFFLSlVNVjRoDQozbnJXSXpjOEVLZnJEMS8rQUYzRFRZdWVBcjBLaU9YRTFNUTFnRldjMytqVWtGNWQ5dHdRc2owYkhmdUZqRWlwDQpuUTlMcUhnWmpxdHZla3EvYzZ1Q2RKZjIzYjh4MzJHcnNPbjBzU253LzF4Z2VsZFYwWTcrSjVjemhXakFlajArDQpkRjk0OHJlRXA3RFlqcVU9DQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tDQo="
+	  },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "radhikgu-k81d",
+      "vmSize": "Standard_D2_v2",
+	    "StorageProfile" : "StorageAccount"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "agentpool1",
+        "count": 2,
+        "vmSize": "Standard_D2_v2",
+        "availabilityProfile": "AvailabilitySet",
+		    "StorageProfile" : "StorageAccount"
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "azureuser",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDvbLKDItnLMl4boe4/7Sg7azBznr1k/MCpjYroJDPxOn9m4RMAtvE7iQV8P/oqGY6DjyS7kS8ShMMRaedZ/X1xcHVOTmSihWk0hdgWfyyhHJHo5cKnnZCJYH0U4REf5ofwQlP+N+7fN2xNkQaw/qjYUH8nNpRp7z9nLk1MxAD35jACGKjth417oEM7kr86qePkdy18m+YEA8713UbUWXnqHduOsXdG+QfeHN4P3G11fHXs6yYpzf/Xmi/U6KN2fv8Q4w/5JrRmLOB++a1UYdhoQYkexuLpv53PGBqJpKrJMmv7v1ZsXV8WR7LFLlkzzbrnzICts3dr3S2FMVAAdproCG5CnwHK0kocxXDBRnicgW0ymyfFGzNtr3hXgvP7AmZWYE013/5P2068lqwU8RGQKnDE1ydIcZ58U3IkAWyswOGYML9NbbZMEV1cdBBBi8Gu6uy/3sd+vnfciTasYNF70z1qWKCawWWOEwit9mKEANh677M/dfzt9yJABRhQmDNKjxI0TumDYoCXMEZ7czHYmhKue1tBAJbgDUN23lr/xS7YT3feoVnGovazDUI+SOdrIsZXPIUlN9xh7ZBW0JvxO+JZly4pMV/gMuf2NKnxFR1jfSXPCBjSGaYjBfweEAvMJ61iH3r64T2Tis2hjg2SdkCjimwYva9dh7cGVkYGmQ== imported-openssh-key"
+          }
+        ]
+      }
+    },
+    "servicePrincipalProfile": {
+      "clientId": "a2c280f9-0850-4fd5-9ece-4dd2914c25a3",
+      "secret": "he9QLzkZQ57xb58dgQcHGLlNNgFrZuRiMgULLAR7x+w="
+    }
+  }
+}

@@ -73,7 +73,7 @@
   {{end}}
     "masterOffset": "[parameters('masterOffset')]",
 {{end}}
-    "apiVersionDefault": "2016-03-30",
+	"apiVersionDefault": "2015-06-15",
     "apiVersionLinkDefault": "2015-01-01",
     "locations": [
          "[resourceGroup().location]",
@@ -284,4 +284,24 @@
     "agentWindowsVersion": "[parameters('agentWindowsVersion')]",
     "singleQuote": "'",
     "windowsCustomScriptSuffix": " $inputFile = '%SYSTEMDRIVE%\\AzureData\\CustomData.bin' ; $outputFile = '%SYSTEMDRIVE%\\AzureData\\CustomDataSetupScript.ps1' ; Copy-Item $inputFile $outputFile ; Invoke-Expression('{0} {1}' -f $outputFile, $arguments) ; "
+{{end}}
+{{if IsAzureStackCloud}}
+   ,"cloudprofileName": "[parameters('cloudprofileName')]",
+    "cloudprofileManagementPortalURL": "[parameters('cloudprofileManagementPortalURL')]",
+    "cloudprofilePublishSettingsURL": "[parameters('cloudprofilePublishSettingsURL')]",
+    "cloudprofileServiceManagementEndpoint": "[parameters('cloudprofileServiceManagementEndpoint')]",
+    "cloudprofileResourceManagerEndpoint": "[parameters('cloudprofileResourceManagerEndpoint')]",
+    "cloudprofileActiveDirectoryEndpoint": "[parameters('cloudprofileActiveDirectoryEndpoint')]",
+    "cloudprofileGalleryEndpoint": "[parameters('cloudprofileGalleryEndpoint')]",
+    "cloudprofileKeyVaultEndpoint": "[parameters('cloudprofileKeyVaultEndpoint')]",
+    "cloudprofileGraphEndpoint": "[parameters('cloudprofileGraphEndpoint')]",
+    "cloudprofileStorageEndpointSuffix": "[parameters('cloudprofileStorageEndpointSuffix')]",
+    "cloudprofileSQLDatabaseDNSSuffix": "[parameters('cloudprofileSQLDatabaseDNSSuffix')]",
+    "cloudprofileTrafficManagerDNSSuffix": "[parameters('cloudprofileTrafficManagerDNSSuffix')]",
+    "cloudprofileKeyVaultDNSSuffix": "[parameters('cloudprofileKeyVaultDNSSuffix')]",
+    "cloudprofileServiceBusEndpointSuffix": "[parameters('cloudprofileServiceBusEndpointSuffix')]",
+    "cloudprofileServiceManagementVMDNSSuffix": "[parameters('cloudprofileServiceManagementVMDNSSuffix')]",
+    "cloudprofileResourceManagerVMDNSSuffix": "[parameters('cloudprofileResourceManagerVMDNSSuffix')]",
+    "cloudprofileContainerRegistryDNSSuffix": "[parameters('cloudprofileContainerRegistryDNSSuffix')]",
+    "cloudprofileResourceManagerRootCertificate": "[parameters('cloudprofileResourceManagerRootCertificate')]"
 {{end}}
