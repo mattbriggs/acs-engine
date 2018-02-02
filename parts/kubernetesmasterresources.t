@@ -120,36 +120,6 @@
               "sourceAddressPrefix": "*",
               "sourcePortRange": "*"
             }
-          },
-          {
-              "name": "AllowAllInbound",
-              "properties": {
-                  "access": "Allow",
-                  "provisioningState": "Succeeded",
-                  "description": "Allow All Inbound",
-                  "destinationAddressPrefix": "*",
-                  "destinationPortRange": "*",
-                  "direction": "Inbound",
-                  "priority": 200,
-                  "protocol": "*",
-                  "sourceAddressPrefix": "*",
-                  "sourcePortRange": "*"
-              }
-          },
-          {
-              "name": "AllowAllOutbound",
-              "properties": {
-                  "access": "Allow",
-                  "provisioningState": "Succeeded",
-                  "description": "Allow All Outbound",
-                  "destinationAddressPrefix": "*",
-                  "destinationPortRange": "*",
-                  "direction": "Outbound",
-                  "priority": 200,
-                  "protocol": "*",
-                  "sourceAddressPrefix": "*",
-                  "sourcePortRange": "*"
-              }
           }
         ]
       },
