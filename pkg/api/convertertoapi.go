@@ -580,6 +580,7 @@ func convertVLabsCloudProfile(vlabscs *vlabs.CloudProfile, api *CloudProfile) {
 	api.ResourceManagerVMDNSSuffix = vlabscs.ResourceManagerVMDNSSuffix
 	api.ContainerRegistryDNSSuffix = vlabscs.ContainerRegistryDNSSuffix
 	api.ResourceManagerRootCertificate = vlabscs.ResourceManagerRootCertificate
+	api.Location = vlabscs.Location
 }
 
 func convertVLabsOrchestratorProfile(vlabscs *vlabs.OrchestratorProfile, api *OrchestratorProfile) {

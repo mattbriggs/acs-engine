@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Masterminds/semver"
@@ -578,6 +579,9 @@ func getCloudProfileName(properties *api.Properties) string {
 	var cloudProfileName string = ""
 	if properties.CloudProfile != nil {
 		cloudProfileName = properties.CloudProfile.Name
+		if cloudProfileName == "" {
+			log.Fatalf("CloudProfile is present but no name associated with it.")
+		}
 	}
 	return cloudProfileName
 }

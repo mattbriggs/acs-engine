@@ -270,6 +270,7 @@ type CloudProfile struct {
 	ResourceManagerVMDNSSuffix           string `json:"resourceManagerVMDNSSuffix,omitempty"`
 	ContainerRegistryDNSSuffix           string `json:"containerRegistryDNSSuffix,omitempty"`
 	ResourceManagerRootCertificate       string `json:"resourceManagerRootCertificate,omitempty"`
+	Location							 string `json:"location,omitempty"`
 }
 
 // AgentPoolProfile represents an agent pool definition

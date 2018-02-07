@@ -18,7 +18,7 @@ import (
 	"strings"
 	"text/template"
 
-	// log "github.com/sirupsen/logrus"
+	 // log "github.com/sirupsen/logrus"
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/i18n"
 	"github.com/Masterminds/semver"
@@ -238,7 +238,7 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 	templateRaw = ""
 	parametersRaw = ""
 	err = nil
-
+	
 	var templ *template.Template
 
 	properties := containerService.Properties
@@ -388,6 +388,16 @@ func FormatAzureProdFQDNs(fqdnPrefix string, properties *api.Properties) []strin
 	for _, location := range AzureLocations {
 		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location, properties))
 	}
+
+	// We need an additional customer provided location for hybrid cloud solution (AzureStack).
+	var cloudProfileName string = getCloudProfileName(properties)
+	if cloudProfileName != "" && strings.EqualFold(cloudProfileName, azureStackCloud) {
+		if properties.CloudProfile.Location == "" {
+			log.Fatalf("CloudProfile type %s has empty location specified '%s'", cloudProfileName, properties.CloudProfile.Location)
+		}
+		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, properties.CloudProfile.Location, properties))
+	}
+
 	return fqdns
 }
 
@@ -539,6 +549,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		addValue(parametersMap, "cloudprofileResourceManagerVMDNSSuffix", properties.CloudProfile.ResourceManagerVMDNSSuffix)
 		addValue(parametersMap, "cloudprofileContainerRegistryDNSSuffix", properties.CloudProfile.ContainerRegistryDNSSuffix)
 		addValue(parametersMap, "cloudprofileResourceManagerRootCertificate", properties.CloudProfile.ResourceManagerRootCertificate)
+		addValue(parametersMap, "cloudprofileLocation", properties.CloudProfile.Location)
 	}
 
 	addValue(parametersMap, "sshRSAPublicKey", properties.LinuxProfile.SSH.PublicKeys[0].KeyData)

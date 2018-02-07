@@ -522,6 +522,13 @@
         "description": "cloudprofileResourceManagerRootCertificate"
       },
       "type": "string"
+    },
+    "cloudprofileLocation": {
+      {{PopulateClassicModeDefaultValue "cloudprofileLocation"}}
+      "metadata": {
+        "description": "cloudprofileLocation"
+      },
+      "type": "string"
     }
 {{ end }}
 
