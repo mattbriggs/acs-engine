@@ -22,16 +22,8 @@ write_files:
       "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
       "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
       "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
-      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}",
-      "location": "{{WrapAsVariable "cloudprofileLocation"}}"
+      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}"
     }
-
-- path: "/usr/local/share/ca-certificates/azurestack.crt"
-  permissions: "0644"
-  encoding: "base64"
-  owner: "root"
-  content: |
-    {{WrapAsVariable "cloudprofileResourceManagerRootCertificate"}}
 
 - path: "/etc/systemd/system/docker.service.d/clear_mount_propagation_flags.conf"
   permissions: "0644"
