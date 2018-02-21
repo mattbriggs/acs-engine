@@ -149,6 +149,34 @@
               "sourceAddressPrefix": "*",
               "sourcePortRange": "*"
             }
+          },
+		  {
+            "name": "allow_ssh_outbound",
+            "properties": {
+              "access": "Allow",
+              "description": "Allow SSH traffic to master",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "22-22",
+              "direction": "Outbound",
+              "priority": 101,
+              "protocol": "Tcp",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*"
+            }
+          },
+          {
+            "name": "allow_kube_tls_outbound",
+            "properties": {
+              "access": "Allow",
+              "description": "Allow kube-apiserver (tls) traffic to master",
+              "destinationAddressPrefix": "*",
+              "destinationPortRange": "443-443",
+              "direction": "Outbound",
+              "priority": 100,
+              "protocol": "Tcp",
+              "sourceAddressPrefix": "*",
+              "sourcePortRange": "*"
+            }
           }
         ]
       },
