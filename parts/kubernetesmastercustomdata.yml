@@ -366,7 +366,7 @@ write_files:
     Alias=etcd.service
 
 - path: "/opt/azure/containers/preprovision.sh"
-  permissions: "0744"
+  permissions: "0755"
   owner: "root"
   content: |
     sudo apt-get -y install etcd
@@ -398,6 +398,7 @@ write_files:
     {{if .OrchestratorProfile.KubernetesConfig.EnableAggregatedAPIs}}
     sudo bash /etc/kubernetes/generate-proxy-certs.sh
     {{end}}
+    sudo cp /var/lib/waagent/{{WrapAsVariable "cloudprofileResourceManagerRootCertificate"}}.crt /usr/local/share/ca-certificates/azurestackCertificate.crt
 
 runcmd:
 - touch /opt/azure/containers/runcmd.complete

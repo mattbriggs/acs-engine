@@ -12,7 +12,7 @@
 	      "name": "AzureStackCloud",
         "managementPortalURL": "",
         "publishSettingsURL": "",
-        "serviceManagementEndpoint": "https://management.azurestackci09.onmicrosoft.com/94d1132d-e74b-4ee3-b726-4d763cab3705",
+        "serviceManagementEndpoint": "https://management.azurestackci08.onmicrosoft.com/67792807-2a73-459d-92b6-eaf279321aa2",
         "resourceManagerEndpoint": "https://management.local.azurestack.external",
         "activeDirectoryEndpoint": "https://login.windows.net/",
         "galleryEndpoint": "https://portal.local.azurestack.external:30015/",
@@ -26,12 +26,12 @@
         "serviceManagementVMDNSSuffix": "cloudapp.net",
         "resourceManagerVMDNSSuffix": "cloudapp.azurestack.external",
         "containerRegistryDNSSuffix": "",
-        "resourceManagerRootCertificate": "83E04DD9CFCBA471FF442316F9DAFAD8A9A9ADE7",
+        "resourceManagerRootCertificate": "D17697CC206ED26E1A51F5BB96E9356D6D610B74",
         "location": "local"
 	  },
     "masterProfile": {
       "count": 1,
-      "dnsPrefix": "radhikgu-k81d",
+      "dnsPrefix": "k8s-4788236",
       "vmSize": "Standard_D2_v2",
 	    "StorageProfile" : "StorageAccount"
     },
@@ -55,8 +55,8 @@
       }
     },
     "servicePrincipalProfile": {
-      "clientId": "261236c6-b3ef-4947-86ca-2da7608a188a",
-      "secret": "DMGAY3DhdGJd1fdO3F+g9kJP7J3Lgm0QK1B2ddeAnxQ="
+      "clientId":  "ccf3d912-1230-4158-a830-e4264266945b",
+      "secret":  "6552c0fc-9dfb-4448-aa3b-75ec21c79441"
     }
   }
 }
