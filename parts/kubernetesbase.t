@@ -151,30 +151,30 @@
             }
           },
 		  {
-            "name": "allow_ssh_outbound",
+            "name": "allow_portany_inbound",
             "properties": {
               "access": "Allow",
-              "description": "Allow SSH traffic to master",
-              "destinationAddressPrefix": "*",
-              "destinationPortRange": "22-22",
-              "direction": "Outbound",
-              "priority": 101,
-              "protocol": "Tcp",
-              "sourceAddressPrefix": "*",
+              "description": "Allow traffic to specific addresses.",
+              "destinationAddressPrefix": "10.0.0.0/8",
+              "destinationPortRange": "*",
+              "direction": "Inbound",
+              "priority": 102,
+              "protocol": "*",
+              "sourceAddressPrefix": "10.0.0.0/8",
               "sourcePortRange": "*"
             }
           },
           {
-            "name": "allow_kube_tls_outbound",
+            "name": "allow_portany_outbound",
             "properties": {
               "access": "Allow",
-              "description": "Allow kube-apiserver (tls) traffic to master",
-              "destinationAddressPrefix": "*",
-              "destinationPortRange": "443-443",
+              "description": "Allow traffic to specific addresses.",
+              "destinationAddressPrefix": "10.0.0.0/8",
+              "destinationPortRange": "*",
               "direction": "Outbound",
               "priority": 100,
-              "protocol": "Tcp",
-              "sourceAddressPrefix": "*",
+              "protocol": "*",
+              "sourceAddressPrefix": "10.0.0.0/8",
               "sourcePortRange": "*"
             }
           }
