@@ -129,7 +129,7 @@
               "destinationAddressPrefix": "10.0.0.0/8",
               "destinationPortRange": "*",
               "direction": "Inbound",
-              "priority": 102,
+              "priority": 64000,
               "protocol": "*",
               "sourceAddressPrefix": "10.0.0.0/8",
               "sourcePortRange": "*"
@@ -143,7 +143,7 @@
               "destinationAddressPrefix": "10.0.0.0/8",
               "destinationPortRange": "*",
               "direction": "Outbound",
-              "priority": 100,
+              "priority": 64000,
               "protocol": "*",
               "sourceAddressPrefix": "10.0.0.0/8",
               "sourcePortRange": "*"
