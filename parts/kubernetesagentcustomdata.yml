@@ -194,7 +194,10 @@ write_files:
     echo `date`,`hostname`, predockerinstall>>/opt/m
     for i in 1 2 3 4 5; do curl --max-time 60 -fsSL https://aptdocker.azureedge.net/gpg | apt-key add -; [ $? -eq 0 ] && break || sleep 5; done
     echo "deb {{WrapAsVariable "dockerEngineDownloadRepo"}} ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
-    "echo \"Package: docker-engine\nPin: version {{WrapAsVariable "dockerEngineVersion"}}\nPin-Priority: 550\n\" > /etc/apt/preferences.d/docker.pref"
+    echo "Package: docker-engine
+    Pin: version {{WrapAsVariable "dockerEngineVersion"}}
+    Pin-Priority: 550
+    " > /etc/apt/preferences.d/docker.pref
     apt-get update
     apt-get install -y ebtables
     apt-get install -y docker-engine
