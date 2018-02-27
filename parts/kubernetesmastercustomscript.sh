@@ -410,6 +410,7 @@ apt-mark hold walinuxagent
 
 # make all the pre provisioning steps done before kubernetes deployment
 runPreProvisionScript
+ensureCertificates
 apt-mark unhold walinuxagent
 
 # master and node
@@ -426,8 +427,6 @@ extractKubectl
 echo `date`,`hostname`, ensureJournalStart>>/opt/m 
 ensureJournal
 echo `date`,`hostname`, ensureJournalDone>>/opt/m 
-
-ensureCertificates
 
 # make sure walinuxagent doesn't get updated in the middle of running this script
 apt-mark hold walinuxagent
