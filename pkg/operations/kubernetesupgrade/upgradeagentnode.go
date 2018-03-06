@@ -80,18 +80,7 @@ func (kan *UpgradeAgentNode) CreateNode(poolName string, agentNo int) error {
 	deploymentSuffix := random.Int31()
 	deploymentName := fmt.Sprintf("agent-%s-%d", time.Now().Format("06-01-02T15.04.05"), deploymentSuffix)
 
-	_, err := kan.Client.DeployTemplate(
-		kan.ResourceGroup,
-		deploymentName,
-		kan.TemplateMap,
-		kan.ParametersMap,
-		nil)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return armhelpers.DeployTemplateSync(kan.Client, kan.logger, kan.ResourceGroup, deploymentName, kan.TemplateMap, kan.ParametersMap)
 }
 
 // Validate will verify that agent node has been upgraded as expected.
@@ -100,7 +89,7 @@ func (kan *UpgradeAgentNode) Validate(vmName *string) error {
 		kan.logger.Warningf("VM name was empty. Skipping node condition check")
 		return nil
 	}
-
+	kan.logger.Infof("Validating %s", *vmName)
 	var masterURL string
 	if kan.UpgradeContainerService.Properties.HostedMasterProfile != nil {
 		masterURL = kan.UpgradeContainerService.Properties.HostedMasterProfile.FQDN
@@ -110,7 +99,7 @@ func (kan *UpgradeAgentNode) Validate(vmName *string) error {
 
 	client, err := kan.Client.GetKubernetesClient(masterURL, kan.kubeConfig, interval, kan.timeout)
 	if err != nil {
-		return err
+		return &armhelpers.DeploymentValidationError{Err: err}
 	}
 
 	retryTimer := time.NewTimer(time.Millisecond)
@@ -119,9 +108,7 @@ func (kan *UpgradeAgentNode) Validate(vmName *string) error {
 		select {
 		case <-timeoutTimer.C:
 			retryTimer.Stop()
-			err := fmt.Errorf("Node was not ready within %v", kan.timeout)
-			kan.logger.Errorf(err.Error())
-			return err
+			return &armhelpers.DeploymentValidationError{Err: kan.Translator.Errorf("Node was not ready within %v", kan.timeout)}
 		case <-retryTimer.C:
 			agentNode, err := client.GetNode(*vmName)
 			if err != nil {

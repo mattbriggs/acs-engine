@@ -131,6 +131,12 @@ func (uc *upgradeCmd) validate(cmd *cobra.Command, args []string) {
 		log.Fatalf("error parsing the api model: %s", err.Error())
 	}
 
+	if uc.containerService.Location == "" {
+		uc.containerService.Location = uc.location
+	} else if uc.containerService.Location != uc.location {
+		log.Fatalf("--location does not match api model location")
+	}
+
 	// get available upgrades for container service
 	orchestratorInfo, err := api.GetOrchestratorVersionProfile(uc.containerService.Properties.OrchestratorProfile)
 	if err != nil {
@@ -204,6 +210,27 @@ func (uc *upgradeCmd) run(cmd *cobra.Command, args []string) error {
 	if err = upgradeCluster.UpgradeCluster(uc.authArgs.SubscriptionID, kubeConfig, uc.resourceGroupName,
 		uc.containerService, uc.nameSuffix, uc.agentPoolsToUpgrade); err != nil {
 		log.Fatalf("Error upgrading cluster: %s \n", err.Error())
+	}
+
+	apiloader := &api.Apiloader{
+		Translator: &i18n.Translator{
+			Locale: uc.locale,
+		},
+	}
+	b, e := apiloader.SerializeContainerService(uc.containerService, uc.apiVersion)
+
+	if e != nil {
+		return e
+	}
+
+	f := acsengine.FileSaver{
+		Translator: &i18n.Translator{
+			Locale: uc.locale,
+		},
+	}
+
+	if e = f.SaveFile(uc.deploymentDirectory, "apimodel.json", b); e != nil {
+		return e
 	}
 
 	return nil

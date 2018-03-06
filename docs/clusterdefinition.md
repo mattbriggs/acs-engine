@@ -32,7 +32,7 @@ Here are the valid values for the orchestrator types:
 |---|---|---|
 |kubernetesImageBase|no|This specifies the base URL (everything preceding the actual image filename) of the kubernetes hyperkube image to use for cluster deployment, e.g., `k8s-gcrio.azureedge.net/`.|
 |dockerEngineVersion|no|Which version of docker-engine to use in your cluster, e.g.. "17.03.*"|
-|networkPolicy|no|Specifies the network policy tool for the cluster. Valid values are:<br>`"azure"` (default), which provides an Azure native networking experience,<br>`none` for not enforcing any network policy,<br>`calico` for Calico network policy (clusters with Linux agents only).<br>See [network policy examples](../examples/networkpolicy) for more information.|
+|networkPolicy|no|Specifies the network policy tool for the cluster. Valid values are:<br>`"azure"` (default), which provides an Azure native networking experience,<br>`none` for not enforcing any network policy,<br>`calico` for Calico network policy (required for Kubernetes network policies; clusters with Linux agents only).<br>See [network policy examples](../examples/networkpolicy) for more information.|
 |containerRuntime|no|The container runtime to use as a backend. The default is `docker`. The only other option is `clear-containers`.|
 |clusterSubnet|no|The IP subnet used for allocating IP addresses for pod network interfaces. The subnet must be in the VNET address space. Default value is 10.244.0.0/16.|
 |dnsServiceIP|no|IP address for kube-dns to listen on. If specified must be in the range of `serviceCidr`.|
@@ -41,6 +41,7 @@ Here are the valid values for the orchestrator types:
 |enableRbac|no|Enable [Kubernetes RBAC](https://kubernetes.io/docs/admin/authorization/rbac/) (boolean - default == true) |
 |enableAggregatedAPIs|no|Enable [Kubernetes Aggregated APIs](https://kubernetes.io/docs/concepts/api-extension/apiserver-aggregation/).This is required by [Service Catalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/README.md). (boolean - default == false) |
 |enableDataEncryptionAtRest|no|Enable [kuberetes data encryption at rest](https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/).This is currently an alpha feature. (boolean - default == false) |
+|enablePrivateCluster|no|Build a cluster without public addresses assigned (boolean - default == false) |
 |maxPods|no|The maximum number of pods per node. The minimum valid value, necessary for running kube-system pods, is 5. Default value is 30 when networkPolicy equals azure, 110 otherwise.|
 |gcHighThreshold|no|Sets the --image-gc-high-threshold value on the kublet configuration. Default is 85. [See kubelet Garbage Collection](https://kubernetes.io/docs/concepts/cluster-administration/kubelet-garbage-collection/) |
 |gcLowThreshold|no|Sets the --image-gc-low-threshold value on the kublet configuration. Default is 80. [See kubelet Garbage Collection](https://kubernetes.io/docs/concepts/cluster-administration/kubelet-garbage-collection/) |
@@ -161,6 +162,7 @@ Below is a list of kubelet options that acs-engine will configure by default:
 |---|---|
 |"--cloud-config"|"/etc/kubernetes/azure.json"|
 |"--cloud-provider"|"azure"|
+|"--cluster-domain"|"cluster.local"|
 |"--pod-infra-container-image"|"pause-amd64:<version>"|
 |"--max-pods"|"110"|
 |"--eviction-hard"|"memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%"|
@@ -178,15 +180,13 @@ Below is a list of kubelet options that are *not* currently user-configurable, e
 |"--azure-container-registry-config"|"/etc/kubernetes/azure.json"|
 |"--allow-privileged"|"true"|
 |"--pod-manifest-path"|"/etc/kubernetes/manifests"|
-|"--cluster-domain"|"cluster.local"|
 |"--network-plugin"|"cni"|
 |"--node-labels"|(based on Azure node metadata)|
-|"--cgroups-per-qos"|"false"|
-|"--enforce-node-allocatable"|""|
+|"--cgroups-per-qos"|"true"|
+|"--enforce-node-allocatable"|"pods"|
 |"--kubeconfig"|"/var/lib/kubelet/kubeconfig"|
 |"--register-node" (master nodes only)|"true"|
 |"--register-with-taints" (master nodes only)|"node-role.kubernetes.io/master=true:NoSchedule"|
-|"--read-only-port"|"0"|
 |"--keep-terminated-pod-volumes"|"false"|
 
 <a name="feat-controller-manager-config"></a>
@@ -284,14 +284,31 @@ Below is a list of cloud-controller-manager options that are *not* currently use
     }
 }
 ```
+Or perhaps you want to customize/override the set of admission-control flags passed to the API Server by default, you can omit the options you don't want and specify only the ones you need as follows:
+
+```
+"orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.8",
+      "kubernetesConfig": {
+        "apiServerConfig": {
+          "--admission-control":  "NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,AlwaysPullImages"
+        }
+      }
+    } 
+```
 
 See [here](https://kubernetes.io/docs/reference/generated/kube-apiserver/) for a reference of supported apiserver options.
 
 Below is a list of apiserver options that acs-engine will configure by default:
 
 |apiserver option|default value|
+|---|---|
 |"--admission-control"|"NamespaceLifecycle, LimitRanger, ServiceAccount, DefaultStorageClass, ResourceQuota, DenyEscalatingExec, AlwaysPullImages, SecurityContextDeny"|
 |"--authorization-mode"|"Node", "RBAC" (*the latter if enabledRbac is true*)|
+|"--audit-log-maxage"|"30"|
+|"--audit-log-maxbackup"|"10"|
+|"--audit-log-maxsize"|"100"|
 |"--feature-gates"|No default (can be a comma-separated list)|
 
 
@@ -299,13 +316,10 @@ Below is a list of apiserver options that are *not* currently user-configurable,
 
 |apiserver option|default value|
 |---|---|
-|"--address"|"0.0.0.0"|
+|"--bind-address"|"0.0.0.0"|
 |"--advertise-address"|*calculated value that represents listening URI for API server*|
 |"--allow-privileged"|"true"|
 |"--anonymous-auth"|"false|
-|"--audit-log-maxage"|"30"|
-|"--audit-log-maxbackup"|"10"|
-|"--audit-log-maxsize"|"100"|
 |"--audit-log-path"|"/var/log/apiserver/audit.log"|
 |"--insecure-port"|"8080"|
 |"--secure-port"|"443"|

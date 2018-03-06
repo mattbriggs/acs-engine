@@ -3,15 +3,49 @@
     "etcdVersion": "[parameters('etcdVersion')]",
     "maxVMsPerPool": 100,
     "apiServerCertificate": "[parameters('apiServerCertificate')]",
+    "totalNodes": "[parameters('totalNodes')]",
 {{ if not IsHostedMaster }}
     "apiServerPrivateKey": "[parameters('apiServerPrivateKey')]",
-{{end}}
     "etcdServerCertificate": "[parameters('etcdServerCertificate')]",
     "etcdServerPrivateKey": "[parameters('etcdServerPrivateKey')]",
     "etcdClientPrivateKey": "[parameters('etcdClientPrivateKey')]",
     "etcdClientCertificate": "[parameters('etcdClientCertificate')]",
-    "etcdPeerPrivateKeys": "[parameters('etcdPeerPrivateKeys')]",
-    "etcdPeerCertificates": "[parameters('etcdPeerCertificates')]",
+    {{if eq .MasterProfile.Count 1}}
+    "etcdPeerPrivateKeys": [
+        "[parameters('etcdPeerPrivateKey0')]"
+    ],
+    "etcdPeerCertificates": [
+        "[parameters('etcdPeerCertificate0')]"
+    ],
+    {{end}}
+    {{if eq .MasterProfile.Count 3}}
+    "etcdPeerPrivateKeys": [
+        "[parameters('etcdPeerPrivateKey0')]",
+        "[parameters('etcdPeerPrivateKey1')]",
+        "[parameters('etcdPeerPrivateKey2')]"
+    ],
+    "etcdPeerCertificates": [
+        "[parameters('etcdPeerCertificate0')]",
+        "[parameters('etcdPeerCertificate1')]",
+        "[parameters('etcdPeerCertificate2')]"
+    ],
+    {{end}}
+    {{if eq .MasterProfile.Count 5}}
+    "etcdPeerPrivateKeys": [
+        "[parameters('etcdPeerPrivateKey0')]",
+        "[parameters('etcdPeerPrivateKey1')]",
+        "[parameters('etcdPeerPrivateKey2')]",
+        "[parameters('etcdPeerPrivateKey3')]",
+        "[parameters('etcdPeerPrivateKey4')]"
+    ],
+    "etcdPeerCertificates": [
+        "[parameters('etcdPeerCertificate0')]",
+        "[parameters('etcdPeerCertificate1')]",
+        "[parameters('etcdPeerCertificate2')]",
+        "[parameters('etcdPeerCertificate3')]",
+        "[parameters('etcdPeerCertificate4')]"
+    ],
+    {{end}}
     "etcdPeerCertFilepath":[
         "/etc/kubernetes/certs/etcdpeer0.crt",
         "/etc/kubernetes/certs/etcdpeer1.crt",
@@ -31,6 +65,7 @@
     "etcdClientKeyFilepath": "/etc/kubernetes/certs/etcdclient.key",
     "etcdServerCertFilepath": "/etc/kubernetes/certs/etcdserver.crt",
     "etcdServerKeyFilepath": "/etc/kubernetes/certs/etcdserver.key",
+{{end}}
     "caCertificate": "[parameters('caCertificate')]",
     "caPrivateKey": "[parameters('caPrivateKey')]",
     "clientCertificate": "[parameters('clientCertificate')]",
@@ -48,11 +83,13 @@
     "kubernetesDashboardMemoryLimit": "[parameters('kubernetesDashboardMemoryLimit')]",
     "kubernetesExecHealthzSpec": "[parameters('kubernetesExecHealthzSpec')]",
     "kubernetesHeapsterSpec": "[parameters('kubernetesHeapsterSpec')]",
+    "kubernetesMetricsServerSpec": "[parameters('kubernetesMetricsServerSpec')]",
     "kubernetesTillerSpec": "[parameters('kubernetesTillerSpec')]",
     "kubernetesTillerCPURequests": "[parameters('kubernetesTillerCPURequests')]",
     "kubernetesTillerMemoryRequests": "[parameters('kubernetesTillerMemoryRequests')]",
     "kubernetesTillerCPULimit": "[parameters('kubernetesTillerCPULimit')]",
     "kubernetesTillerMemoryLimit": "[parameters('kubernetesTillerMemoryLimit')]",
+    "kubernetesTillerMaxHistory": "[parameters('kubernetesTillerMaxHistory')]",
     "kubernetesACIConnectorSpec": "[parameters('kubernetesACIConnectorSpec')]",
     "kubernetesACIConnectorClientId": "[parameters('kubernetesACIConnectorClientId')]",
     "kubernetesACIConnectorClientKey": "[parameters('kubernetesACIConnectorClientKey')]",
@@ -91,6 +128,7 @@
     "vnetCniLinuxPluginsURL":"[parameters('vnetCniLinuxPluginsURL')]",
     "vnetCniWindowsPluginsURL":"[parameters('vnetCniWindowsPluginsURL')]",
     "kubernetesNonMasqueradeCidr": "[parameters('kubernetesNonMasqueradeCidr')]",
+    "kubernetesKubeletClusterDomain": "[parameters('kubernetesKubeletClusterDomain')]",
     "maxPods": "[parameters('maxPods')]",
     "vnetCidr": "[parameters('vnetCidr')]",
     "gcHighThreshold":"[parameters('gcHighThreshold')]",
@@ -111,6 +149,7 @@
     "sshPublicKeyData": "[parameters('sshRSAPublicKey')]",
 {{if .HasAadProfile}}
     "aadTenantId": "[parameters('aadTenantId')]",
+    "aadAdminGroupId": "[parameters('aadAdminGroupId')]",
 {{end}}
 {{if not IsHostedMaster}}
   {{if GetClassicMode}}
@@ -172,16 +211,15 @@
 {{end}}
     "provisionScript": "{{GetKubernetesB64Provision}}",
     "mountetcdScript": "{{GetKubernetesB64Mountetcd}}",
-    "provisionScriptParametersCommon": "[concat('TENANT_ID=',variables('tenantID'),' APISERVER_PUBLIC_KEY=',variables('apiserverCertificate'),' SUBSCRIPTION_ID=',variables('subscriptionId'),' RESOURCE_GROUP=',variables('resourceGroup'),' LOCATION=',variables('location'),' SUBNET=',variables('subnetName'),' NETWORK_SECURITY_GROUP=',variables('nsgName'),' VIRTUAL_NETWORK=',variables('virtualNetworkName'),' VIRTUAL_NETWORK_RESOURCE_GROUP=',variables('virtualNetworkResourceGroupName'),' ROUTE_TABLE=',variables('routeTableName'),' PRIMARY_AVAILABILITY_SET=',variables('primaryAvailabilitySetName'),' SERVICE_PRINCIPAL_CLIENT_ID=',variables('servicePrincipalClientId'),' SERVICE_PRINCIPAL_CLIENT_SECRET=',variables('servicePrincipalClientSecret'),' KUBELET_PRIVATE_KEY=',variables('clientPrivateKey'),' TARGET_ENVIRONMENT=',variables('targetEnvironment'),' NETWORK_POLICY=',variables('networkPolicy'),' FQDNSuffix=',variables('fqdnEndpointSuffix'),' VNET_CNI_PLUGINS_URL=',variables('vnetCniLinuxPluginsURL'),' CNI_PLUGINS_URL=',variables('cniPluginsURL'),' MAX_PODS=',variables('maxPods'),' CLOUDPROVIDER_BACKOFF=',variables('cloudProviderBackoff'),' CLOUDPROVIDER_BACKOFF_RETRIES=',variables('cloudProviderBackoffRetries'),' CLOUDPROVIDER_BACKOFF_EXPONENT=',variables('cloudProviderBackoffExponent'),' CLOUDPROVIDER_BACKOFF_DURATION=',variables('cloudProviderBackoffDuration'),' CLOUDPROVIDER_BACKOFF_JITTER=',variables('cloudProviderBackoffJitter'),' CLOUDPROVIDER_RATELIMIT=',variables('cloudProviderRatelimit'),' CLOUDPROVIDER_RATELIMIT_QPS=',variables('cloudProviderRatelimitQPS'),' CLOUDPROVIDER_RATELIMIT_BUCKET=',variables('cloudProviderRatelimitBucket'),' USE_MANAGED_IDENTITY_EXTENSION=',variables('useManagedIdentityExtension'),' USE_INSTANCE_METADATA=',variables('useInstanceMetadata'),' CONTAINER_RUNTIME=',variables('containerRuntime'))]",
+    "provisionScriptParametersCommon": "[concat('TENANT_ID=',variables('tenantID'),' APISERVER_PUBLIC_KEY=',variables('apiserverCertificate'),' SUBSCRIPTION_ID=',variables('subscriptionId'),' RESOURCE_GROUP=',variables('resourceGroup'),' LOCATION=',variables('location'),' SUBNET=',variables('subnetName'),' NETWORK_SECURITY_GROUP=',variables('nsgName'),' VIRTUAL_NETWORK=',variables('virtualNetworkName'),' VIRTUAL_NETWORK_RESOURCE_GROUP=',variables('virtualNetworkResourceGroupName'),' ROUTE_TABLE=',variables('routeTableName'),' PRIMARY_AVAILABILITY_SET=',variables('primaryAvailabilitySetName'),' SERVICE_PRINCIPAL_CLIENT_ID=',variables('servicePrincipalClientId'),' SERVICE_PRINCIPAL_CLIENT_SECRET=',variables('singleQuote'),variables('servicePrincipalClientSecret'),variables('singleQuote'),' KUBELET_PRIVATE_KEY=',variables('clientPrivateKey'),' TARGET_ENVIRONMENT=',variables('targetEnvironment'),' NETWORK_POLICY=',variables('networkPolicy'),' FQDNSuffix=',variables('fqdnEndpointSuffix'),' VNET_CNI_PLUGINS_URL=',variables('vnetCniLinuxPluginsURL'),' CNI_PLUGINS_URL=',variables('cniPluginsURL'),' MAX_PODS=',variables('maxPods'),' CLOUDPROVIDER_BACKOFF=',variables('cloudProviderBackoff'),' CLOUDPROVIDER_BACKOFF_RETRIES=',variables('cloudProviderBackoffRetries'),' CLOUDPROVIDER_BACKOFF_EXPONENT=',variables('cloudProviderBackoffExponent'),' CLOUDPROVIDER_BACKOFF_DURATION=',variables('cloudProviderBackoffDuration'),' CLOUDPROVIDER_BACKOFF_JITTER=',variables('cloudProviderBackoffJitter'),' CLOUDPROVIDER_RATELIMIT=',variables('cloudProviderRatelimit'),' CLOUDPROVIDER_RATELIMIT_QPS=',variables('cloudProviderRatelimitQPS'),' CLOUDPROVIDER_RATELIMIT_BUCKET=',variables('cloudProviderRatelimitBucket'),' USE_MANAGED_IDENTITY_EXTENSION=',variables('useManagedIdentityExtension'),' USE_INSTANCE_METADATA=',variables('useInstanceMetadata'),' CONTAINER_RUNTIME=',variables('containerRuntime'),' KUBECONFIG_SERVER=',variables('kubeconfigServer'))]",
 
 {{if not IsHostedMaster}}
-    "provisionScriptParametersMaster": "[concat('APISERVER_PRIVATE_KEY=',variables('apiServerPrivateKey'),' CA_CERTIFICATE=',variables('caCertificate'),' CA_PRIVATE_KEY=',variables('caPrivateKey'),' MASTER_FQDN=',variables('masterFqdnPrefix'),' KUBECONFIG_CERTIFICATE=',variables('kubeConfigCertificate'),' KUBECONFIG_KEY=',variables('kubeConfigPrivateKey'),' ETCD_SERVER_CERTIFICATE=',variables('etcdServerCertificate'),' ETCD_CLIENT_CERTIFICATE=',variables('etcdClientCertificate'),' ETCD_SERVER_PRIVATE_KEY=',variables('etcdServerPrivateKey'),' ETCD_CLIENT_PRIVATE_KEY=',variables('etcdClientPrivateKey'),' ETCD_PEER_CERTIFICATES=',string(variables('etcdPeerCertificates')),' ETCD_PEER_PRIVATE_KEYS=',string(variables('etcdPeerPrivateKeys')),' ADMINUSER=',variables('username'))]",
+    "provisionScriptParametersMaster": "[concat('MASTER_NODE=true TOTAL_NODES=',variables('totalNodes'),' APISERVER_PRIVATE_KEY=',variables('apiServerPrivateKey'),' CA_CERTIFICATE=',variables('caCertificate'),' CA_PRIVATE_KEY=',variables('caPrivateKey'),' MASTER_FQDN=',variables('masterFqdnPrefix'),' KUBECONFIG_CERTIFICATE=',variables('kubeConfigCertificate'),' KUBECONFIG_KEY=',variables('kubeConfigPrivateKey'),' ETCD_SERVER_CERTIFICATE=',variables('etcdServerCertificate'),' ETCD_CLIENT_CERTIFICATE=',variables('etcdClientCertificate'),' ETCD_SERVER_PRIVATE_KEY=',variables('etcdServerPrivateKey'),' ETCD_CLIENT_PRIVATE_KEY=',variables('etcdClientPrivateKey'),' ETCD_PEER_CERTIFICATES=',string(variables('etcdPeerCertificates')),' ETCD_PEER_PRIVATE_KEYS=',string(variables('etcdPeerPrivateKeys')),' ADMINUSER=',variables('username'))]",
 {{end}}
     "generateProxyCertsScript": "{{GetKubernetesB64GenerateProxyCerts}}",
     "orchestratorNameVersionTag": "{{.OrchestratorProfile.OrchestratorType}}:{{.OrchestratorProfile.OrchestratorVersion}}",
 {{if IsAzureCNI}}
     "allocateNodeCidrs": false,
-    "ipAddressCount": {{.MasterProfile.IPAddressCount}},
 {{else}}
     "allocateNodeCidrs": true,
 {{end}}
@@ -233,21 +271,26 @@
     "nsgID": "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]",
     "primaryAvailabilitySetName": "[concat('{{ (index .AgentPoolProfiles 0).Name }}-availabilitySet-',variables('nameSuffix'))]",
 {{if not IsHostedMaster }}
-    "masterPublicIPAddressName": "[concat(variables('orchestratorName'), '-master-ip-', variables('masterFqdnPrefix'), '-', variables('nameSuffix'))]",
-    "masterLbID": "[resourceId('Microsoft.Network/loadBalancers',variables('masterLbName'))]",
-    "masterLbIPConfigID": "[concat(variables('masterLbID'),'/frontendIPConfigurations/', variables('masterLbIPConfigName'))]",
-    "masterLbIPConfigName": "[concat(variables('orchestratorName'), '-master-lbFrontEnd-', variables('nameSuffix'))]",
-    "masterLbName": "[concat(variables('orchestratorName'), '-master-lb-', variables('nameSuffix'))]",
-  {{if gt .MasterProfile.Count 1}}
+    {{if IsPrivateCluster}}
+        "kubeconfigServer": "[concat('https://', variables('kubernetesAPIServerIP'), ':443')]",
+    {{else}}
+        "masterPublicIPAddressName": "[concat(variables('orchestratorName'), '-master-ip-', variables('masterFqdnPrefix'), '-', variables('nameSuffix'))]",
+        "masterLbID": "[resourceId('Microsoft.Network/loadBalancers',variables('masterLbName'))]",
+        "masterLbIPConfigID": "[concat(variables('masterLbID'),'/frontendIPConfigurations/', variables('masterLbIPConfigName'))]",
+        "masterLbIPConfigName": "[concat(variables('orchestratorName'), '-master-lbFrontEnd-', variables('nameSuffix'))]",
+        "masterLbName": "[concat(variables('orchestratorName'), '-master-lb-', variables('nameSuffix'))]",
+        "kubeconfigServer": "[concat('https://', variables('masterFqdnPrefix'), '.', variables('location'), '.', variables('fqdnEndpointSuffix'))]",
+    {{end}}
+{{if gt .MasterProfile.Count 1}}
     "masterInternalLbName": "[concat(variables('orchestratorName'), '-master-internal-lb-', variables('nameSuffix'))]",
     "masterInternalLbID": "[resourceId('Microsoft.Network/loadBalancers',variables('masterInternalLbName'))]",
     "masterInternalLbIPConfigName": "[concat(variables('orchestratorName'), '-master-internal-lbFrontEnd-', variables('nameSuffix'))]",
     "masterInternalLbIPConfigID": "[concat(variables('masterInternalLbID'),'/frontendIPConfigurations/', variables('masterInternalLbIPConfigName'))]",
     "masterInternalLbIPOffset": {{GetDefaultInternalLbStaticIPOffset}},
     "kubernetesAPIServerIP": "[concat(variables('masterFirstAddrPrefix'), add(variables('masterInternalLbIPOffset'), int(variables('masterFirstAddrOctet4'))))]",
-  {{else}}
+{{else}}
     "kubernetesAPIServerIP": "[parameters('firstConsecutiveStaticIP')]",
-  {{end}}
+{{end}}
     "masterLbBackendPoolName": "[concat(variables('orchestratorName'), '-master-pool-', variables('nameSuffix'))]",
     "masterFirstAddrComment": "these MasterFirstAddrComment are used to place multiple masters consecutively in the address space",
     "masterFirstAddrOctets": "[split(parameters('firstConsecutiveStaticIP'),'.')]",
@@ -268,9 +311,6 @@
       "[concat(variables('masterFirstAddrPrefix'), add(3, int(variables('masterFirstAddrOctet4'))))]",
       "[concat(variables('masterFirstAddrPrefix'), add(4, int(variables('masterFirstAddrOctet4'))))]"
     ],
-{{if IsAzureCNI}}
-    "masterSecondaryAddrs": [{{GetMasterSecondaryIP}}],
-{{end}}
     "masterEtcdServerPort": {{GetMasterEtcdServerPort}},
     "masterEtcdClientPort": {{GetMasterEtcdClientPort}},
     "masterEtcdPeerURLs":[
@@ -301,6 +341,7 @@
     "readerRoleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')]",
     "scope": "[resourceGroup().id]",
     "tenantId": "[subscription().tenantId]",
+    "singleQuote": "'",
     "targetEnvironment": "[parameters('targetEnvironment')]",
     "dockerEngineDownloadRepo": "[parameters('dockerEngineDownloadRepo')]",
     "dockerEngineVersion": "[parameters('dockerEngineVersion')]"
@@ -329,12 +370,12 @@
     ,"windowsAdminUsername": "[parameters('windowsAdminUsername')]",
     "windowsAdminPassword": "[parameters('windowsAdminPassword')]",
     "kubeBinariesSASURL": "[parameters('kubeBinariesSASURL')]",
+    "windowsPackageSASURLBase": "[parameters('windowsPackageSASURLBase')]",
     "kubeBinariesVersion": "[parameters('kubeBinariesVersion')]",
     "windowsTelemetryGUID": "[parameters('windowsTelemetryGUID')]",
     "agentWindowsPublisher": "MicrosoftWindowsServer",
     "agentWindowsOffer": "WindowsServerSemiAnnual",
     "agentWindowsSku": "Datacenter-Core-1709-with-Containers-smalldisk",
     "agentWindowsVersion": "[parameters('agentWindowsVersion')]",
-    "singleQuote": "'",
     "windowsCustomScriptSuffix": " $inputFile = '%SYSTEMDRIVE%\\AzureData\\CustomData.bin' ; $outputFile = '%SYSTEMDRIVE%\\AzureData\\CustomDataSetupScript.ps1' ; Copy-Item $inputFile $outputFile ; Invoke-Expression('{0} {1}' -f $outputFile, $arguments) ; "
 {{end}}

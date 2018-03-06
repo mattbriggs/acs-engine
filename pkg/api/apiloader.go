@@ -7,6 +7,7 @@ import (
 
 	"github.com/Azure/acs-engine/pkg/api/agentPoolOnlyApi/v20170831"
 	apvlabs "github.com/Azure/acs-engine/pkg/api/agentPoolOnlyApi/vlabs"
+	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Azure/acs-engine/pkg/api/v20160330"
 	"github.com/Azure/acs-engine/pkg/api/v20160930"
 	"github.com/Azure/acs-engine/pkg/api/v20170131"
@@ -43,7 +44,7 @@ func (a *Apiloader) DeserializeContainerService(contents []byte, validate, isUpd
 	if service == nil || err != nil {
 		if isAgentPoolOnlyClusterJSON(contents) {
 			log.Info("No masterProfile: interpreting API model as agent pool only")
-			service, err := a.LoadContainerServiceForAgentPoolOnlyCluster(contents, version, validate, isUpdate)
+			service, err := a.LoadContainerServiceForAgentPoolOnlyCluster(contents, version, validate, isUpdate, "")
 			if service == nil || err != nil {
 				log.Infof("Error returned by LoadContainerServiceForAgentPoolOnlyCluster: %+v", err)
 			}
@@ -183,12 +184,23 @@ func (a *Apiloader) LoadContainerService(
 }
 
 // LoadContainerServiceForAgentPoolOnlyCluster loads an ACS Cluster API Model, validates it, and returns the unversioned representation
-func (a *Apiloader) LoadContainerServiceForAgentPoolOnlyCluster(contents []byte, version string, validate, isUpdate bool) (*ContainerService, error) {
+func (a *Apiloader) LoadContainerServiceForAgentPoolOnlyCluster(contents []byte, version string, validate, isUpdate bool, defaultKubernetesVersion string) (*ContainerService, error) {
 	switch version {
 	case v20170831.APIVersion:
 		managedCluster := &v20170831.ManagedCluster{}
 		if e := json.Unmarshal(contents, &managedCluster); e != nil {
 			return nil, e
+		}
+		// verify orchestrator version
+		if len(managedCluster.Properties.KubernetesVersion) > 0 && !common.AllKubernetesSupportedVersions[managedCluster.Properties.KubernetesVersion] {
+			return nil, a.Translator.Errorf("The selected orchestrator version '%s' is not supported", managedCluster.Properties.KubernetesVersion)
+		}
+		// use defaultKubernetesVersion arg if no version was supplied in the request contents
+		if managedCluster.Properties.KubernetesVersion == "" && defaultKubernetesVersion != "" {
+			if !common.AllKubernetesSupportedVersions[defaultKubernetesVersion] {
+				return nil, a.Translator.Errorf("The selected orchestrator version '%s' is not supported", defaultKubernetesVersion)
+			}
+			managedCluster.Properties.KubernetesVersion = defaultKubernetesVersion
 		}
 		if e := managedCluster.Properties.Validate(); validate && e != nil {
 			return nil, e

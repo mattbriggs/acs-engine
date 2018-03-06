@@ -35,6 +35,7 @@ const (
 	vmResourceType   = "Microsoft.Compute/virtualMachines"
 	vmssResourceType = "Microsoft.Compute/virtualMachineScaleSets"
 	vmExtensionType  = "Microsoft.Compute/virtualMachines/extensions"
+	nicResourceType  = "Microsoft.Network/networkInterfaces"
 
 	// resource ids
 	nsgID = "nsgID"
@@ -282,7 +283,7 @@ func (t *Transformer) NormalizeResourcesForK8sMasterUpgrade(logger *logrus.Entry
 			continue
 		}
 
-		if !(resourceType == vmResourceType || resourceType == vmExtensionType) {
+		if !(resourceType == vmResourceType || resourceType == vmExtensionType || resourceType == nicResourceType) {
 			continue
 		}
 
@@ -290,6 +291,21 @@ func (t *Transformer) NormalizeResourcesForK8sMasterUpgrade(logger *logrus.Entry
 		if !ok {
 			logger.Warnf("Template improperly formatted for field name: %s", nameFieldName)
 			continue
+		}
+
+		if resourceType == nicResourceType {
+			if strings.Contains(resourceName, "variables('masterVMNamePrefix')") {
+				continue
+			} else {
+				// Remove agent NICs if upgrade master nodes
+				if agentPoolsToPreserve == nil {
+					logger.Infoln(fmt.Sprintf("Removing nic: %s from template", resourceName))
+					if len(filteredResources) > 0 {
+						filteredResources = filteredResources[:len(filteredResources)-1]
+					}
+				}
+				continue
+			}
 		}
 
 		if strings.EqualFold(resourceType, vmResourceType) &&

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,6 +113,12 @@ var swarmModeTemplateFiles = []string{swarmBaseFile, swarmParams, swarmAgentReso
  - kubeConfigCertificate
  - kubeConfigPrivateKey
  - servicePrincipalClientSecret
+ - etcdClientCertificate
+ - etcdClientPrivateKey
+ - etcdServerCertificate
+ - etcdServerPrivateKey
+ - etcdPeerCertificates
+ - etcdPeerPrivateKeys
 
  To refer to a keyvault secret, the value of the parameter in the api model file should be formatted as:
 
@@ -190,7 +195,7 @@ func InitializeTemplateGenerator(ctx Context, classicMode bool) (*TemplateGenera
 }
 
 // GenerateTemplate generates the template from the API Model
-func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerService, generatorCode string) (templateRaw string, parametersRaw string, certsGenerated bool, err error) {
+func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerService, generatorCode string, isUpgrade bool) (templateRaw string, parametersRaw string, certsGenerated bool, err error) {
 	// named return values are used in order to set err in case of a panic
 	templateRaw = ""
 	parametersRaw = ""
@@ -205,7 +210,7 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 	defer func() {
 		properties.OrchestratorProfile.OrchestratorVersion = orchVersion
 	}()
-	if certsGenerated, err = SetPropertiesDefaults(containerService); err != nil {
+	if certsGenerated, err = SetPropertiesDefaults(containerService, isUpgrade); err != nil {
 		return templateRaw, parametersRaw, certsGenerated, err
 	}
 
@@ -289,7 +294,22 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 	kubeconfig := string(b)
 	// variable replacement
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"variables('caCertificate')\"}}", base64.StdEncoding.EncodeToString([]byte(properties.CertificateProfile.CaCertificate)), -1)
-	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location), -1)
+	if properties.OrchestratorProfile.KubernetesConfig.EnablePrivateCluster {
+		if properties.MasterProfile.Count > 1 {
+			// more than 1 master, use the internal lb IP
+			firstMasterIP := net.ParseIP(properties.MasterProfile.FirstConsecutiveStaticIP).To4()
+			if firstMasterIP == nil {
+				return "", fmt.Errorf("MasterProfile.FirstConsecutiveStaticIP '%s' is an invalid IP address", properties.MasterProfile.FirstConsecutiveStaticIP)
+			}
+			lbIP := net.IP{firstMasterIP[0], firstMasterIP[1], firstMasterIP[2], firstMasterIP[3] + byte(DefaultInternalLbStaticIPOffset)}
+			kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", lbIP.String(), -1)
+		} else {
+			// Master count is 1, use the master IP
+			kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", properties.MasterProfile.FirstConsecutiveStaticIP, -1)
+		}
+	} else {
+		kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", FormatAzureProdFQDN(properties.MasterProfile.DNSPrefix, location), -1)
+	}
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVariable \"resourceGroup\"}}", properties.MasterProfile.DNSPrefix, -1)
 
 	var authInfo string
@@ -348,13 +368,16 @@ func FormatAzureProdFQDNs(fqdnPrefix string) []string {
 
 // FormatAzureProdFQDN constructs an Azure prod fqdn
 func FormatAzureProdFQDN(fqdnPrefix string, location string) string {
-	FQDNFormat := AzureCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
-	if location == "chinaeast" || location == "chinanorth" {
+	var FQDNFormat string
+	switch GetCloudTargetEnv(location) {
+	case azureChinaCloud:
 		FQDNFormat = AzureChinaCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
-	} else if location == "germanynortheast" || location == "germanycentral" {
+	case azureGermanCloud:
 		FQDNFormat = AzureGermanCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
-	} else if location == "usgovvirginia" || location == "usgoviowa" || location == "usgovarizona" || location == "usgovtexas" {
+	case azureUSGovernmentCloud:
 		FQDNFormat = AzureUSGovernmentCloud.EndpointConfig.ResourceManagerVMDNSSuffix
+	default:
+		FQDNFormat = AzureCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
 	}
 	return fmt.Sprintf("%s.%s."+FQDNFormat, fqdnPrefix, location)
 }
@@ -502,12 +525,18 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 			addSecret(parametersMap, "clientPrivateKey", properties.CertificateProfile.ClientPrivateKey, true)
 			addSecret(parametersMap, "kubeConfigCertificate", properties.CertificateProfile.KubeConfigCertificate, true)
 			addSecret(parametersMap, "kubeConfigPrivateKey", properties.CertificateProfile.KubeConfigPrivateKey, true)
-			addSecret(parametersMap, "etcdServerCertificate", properties.CertificateProfile.EtcdServerCertificate, true)
-			addSecret(parametersMap, "etcdServerPrivateKey", properties.CertificateProfile.EtcdServerPrivateKey, true)
-			addSecret(parametersMap, "etcdClientCertificate", properties.CertificateProfile.EtcdClientCertificate, true)
-			addSecret(parametersMap, "etcdClientPrivateKey", properties.CertificateProfile.EtcdClientPrivateKey, true)
-			addArraySecret(parametersMap, "etcdPeerCertificates", properties.CertificateProfile.EtcdPeerCertificates, true)
-			addArraySecret(parametersMap, "etcdPeerPrivateKeys", properties.CertificateProfile.EtcdPeerPrivateKeys, true)
+			if properties.MasterProfile != nil {
+				addSecret(parametersMap, "etcdServerCertificate", properties.CertificateProfile.EtcdServerCertificate, true)
+				addSecret(parametersMap, "etcdServerPrivateKey", properties.CertificateProfile.EtcdServerPrivateKey, true)
+				addSecret(parametersMap, "etcdClientCertificate", properties.CertificateProfile.EtcdClientCertificate, true)
+				addSecret(parametersMap, "etcdClientPrivateKey", properties.CertificateProfile.EtcdClientPrivateKey, true)
+				for i, pc := range properties.CertificateProfile.EtcdPeerCertificates {
+					addSecret(parametersMap, "etcdPeerCertificate"+strconv.Itoa(i), pc, true)
+				}
+				for i, pk := range properties.CertificateProfile.EtcdPeerPrivateKeys {
+					addSecret(parametersMap, "etcdPeerPrivateKey"+strconv.Itoa(i), pk, true)
+				}
+			}
 		}
 
 		if properties.HostedMasterProfile != nil && properties.HostedMasterProfile.FQDN != "" {
@@ -540,6 +569,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 			addValue(parametersMap, "kubernetesTillerCPULimit", tillerAddon.Containers[c].CPULimits)
 			addValue(parametersMap, "kubernetesTillerMemoryRequests", tillerAddon.Containers[c].MemoryRequests)
 			addValue(parametersMap, "kubernetesTillerMemoryLimit", tillerAddon.Containers[c].MemoryLimits)
+			addValue(parametersMap, "kubernetesTillerMaxHistory", tillerAddon.Config["max-history"])
 			if tillerAddon.Containers[c].Image != "" {
 				addValue(parametersMap, "kubernetesTillerSpec", tillerAddon.Containers[c].Image)
 			} else {
@@ -594,6 +624,15 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 				addValue(parametersMap, "kubernetesReschedulerSpec", cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase+KubeConfigs[k8sVersion][DefaultReschedulerAddonName])
 			}
 		}
+		metricsServerAddon := getAddonByName(properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultMetricsServerAddonName)
+		c = getAddonContainersIndexByName(metricsServerAddon.Containers, DefaultMetricsServerAddonName)
+		if c > -1 {
+			if metricsServerAddon.Containers[c].Image != "" {
+				addValue(parametersMap, "kubernetesMetricsServerSpec", metricsServerAddon.Containers[c].Image)
+			} else {
+				addValue(parametersMap, "kubernetesMetricsServerSpec", cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase+KubeConfigs[k8sVersion][DefaultMetricsServerAddonName])
+			}
+		}
 		addValue(parametersMap, "kubernetesKubeDNSSpec", cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase+KubeConfigs[k8sVersion]["dns"])
 		addValue(parametersMap, "kubernetesPodInfraContainerSpec", cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase+KubeConfigs[k8sVersion]["pause"])
 		addValue(parametersMap, "cloudProviderBackoff", strconv.FormatBool(properties.OrchestratorProfile.KubernetesConfig.CloudProviderBackoff))
@@ -606,6 +645,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		addValue(parametersMap, "cloudProviderRatelimitBucket", strconv.Itoa(properties.OrchestratorProfile.KubernetesConfig.CloudProviderRateLimitBucket))
 		addValue(parametersMap, "kubeClusterCidr", properties.OrchestratorProfile.KubernetesConfig.ClusterSubnet)
 		addValue(parametersMap, "kubernetesNonMasqueradeCidr", properties.OrchestratorProfile.KubernetesConfig.KubeletConfig["--non-masquerade-cidr"])
+		addValue(parametersMap, "kubernetesKubeletClusterDomain", properties.OrchestratorProfile.KubernetesConfig.KubeletConfig["--cluster-domain"])
 		addValue(parametersMap, "generatorCode", generatorCode)
 		if properties.HostedMasterProfile != nil {
 			addValue(parametersMap, "orchestratorName", "aks")
@@ -624,6 +664,14 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		addValue(parametersMap, "etcdDownloadURLBase", cloudSpecConfig.KubernetesSpecConfig.EtcdDownloadURLBase)
 		addValue(parametersMap, "etcdVersion", cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdVersion)
 		addValue(parametersMap, "etcdDiskSizeGB", cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdDiskSizeGB)
+		var totalNodes int
+		if cs.Properties.MasterProfile != nil {
+			totalNodes = cs.Properties.MasterProfile.Count
+		}
+		for _, pool := range cs.Properties.AgentPoolProfiles {
+			totalNodes = totalNodes + pool.Count
+		}
+		addValue(parametersMap, "totalNodes", totalNodes)
 
 		if properties.OrchestratorProfile.KubernetesConfig == nil ||
 			!properties.OrchestratorProfile.KubernetesConfig.UseManagedIdentity {
@@ -641,6 +689,9 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 
 		if properties.AADProfile != nil {
 			addValue(parametersMap, "aadTenantId", properties.AADProfile.TenantID)
+			if properties.AADProfile.AdminGroupID != "" {
+				addValue(parametersMap, "aadAdminGroupId", properties.AADProfile.AdminGroupID)
+			}
 		}
 	}
 
@@ -708,6 +759,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		if properties.OrchestratorProfile.OrchestratorType == api.Kubernetes {
 			k8sVersion := properties.OrchestratorProfile.OrchestratorVersion
 			addValue(parametersMap, "kubeBinariesSASURL", cloudSpecConfig.KubernetesSpecConfig.KubeBinariesSASURLBase+KubeConfigs[k8sVersion]["windowszip"])
+			addValue(parametersMap, "windowsPackageSASURLBase", cloudSpecConfig.KubernetesSpecConfig.WindowsPackageSASURLBase)
 			addValue(parametersMap, "kubeBinariesVersion", k8sVersion)
 			addValue(parametersMap, "windowsTelemetryGUID", cloudSpecConfig.KubernetesSpecConfig.WindowsTelemetryGUID)
 		}
@@ -770,24 +822,6 @@ func addSecret(m paramsMap, k string, v interface{}, encode bool) {
 	addKeyvaultReference(m, k, parts[1], parts[2], parts[4])
 }
 
-func addArraySecret(m paramsMap, k string, v interface{}, encode bool) {
-	arr, ok := v.([]string)
-	if !ok {
-		addValue(m, k, v)
-		return
-	}
-	values := make([]string, len(arr))
-	for i := 0; i < len(arr); i++ {
-		if encode {
-			values[i] = base64.StdEncoding.EncodeToString([]byte(arr[i]))
-		} else {
-			values[i] = arr[i]
-		}
-
-	}
-	addValue(m, k, values)
-}
-
 // getStorageAccountType returns the support managed disk storage tier for a give VM size
 func getStorageAccountType(sizeName string) (string, error) {
 	spl := strings.Split(sizeName, "_")
@@ -818,6 +852,11 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"IsKubernetesVersionGe": func(version string) bool {
 			orchestratorVersion, _ := semver.NewVersion(cs.Properties.OrchestratorProfile.OrchestratorVersion)
 			constraint, _ := semver.NewConstraint(">=" + version)
+			return cs.Properties.OrchestratorProfile.OrchestratorType == api.Kubernetes && constraint.Check(orchestratorVersion)
+		},
+		"IsKubernetesVersionLt": func(version string) bool {
+			orchestratorVersion, _ := semver.NewVersion(cs.Properties.OrchestratorProfile.OrchestratorVersion)
+			constraint, _ := semver.NewConstraint("<" + version)
 			return cs.Properties.OrchestratorProfile.OrchestratorType == api.Kubernetes && constraint.Check(orchestratorVersion)
 		},
 		"IsKubernetesVersionTilde": func(version string) bool {
@@ -877,62 +916,6 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			}
 			return strings.TrimSuffix(buf.String(), ", ")
 		},
-		"GetMasterCount": func() int {
-			masterProfile := cs.Properties.MasterProfile
-			if masterProfile == nil {
-				return 0
-			}
-			return masterProfile.Count
-		},
-		"GetMasterSecondaryIP": func() string {
-			var ips string
-			var ipint uint32
-
-			profile := cs.Properties.MasterProfile
-			if profile == nil {
-				return ""
-			}
-
-			ip := net.ParseIP(profile.FirstConsecutiveStaticIP)
-			ipv4 := ip.To4()
-			if ipv4 != nil {
-				ipint = binary.BigEndian.Uint32(ipv4)
-			} else {
-				log.Fatalf("Net IP To4() function returns nil")
-			}
-
-			// Make space for first few IPs.
-			ipint += uint32(profile.Count) + uint32(DefaultInternalLbStaticIPOffset) - 1
-			startIP := make(net.IP, 4)
-			binary.BigEndian.PutUint32(startIP, ipint)
-
-			totalIPCount := profile.Count * profile.IPAddressCount
-			ipint = 0
-
-			// Generate All secondary IPs that master will use.
-			for count := totalIPCount; count > 0; count-- {
-				ipv4 = startIP.To4()
-				if ipv4 != nil {
-					ipint = binary.BigEndian.Uint32(ipv4)
-				} else {
-					log.Fatalf("Net IP To4() function returns nil for startIP")
-				}
-
-				ipint++
-				newIP := make(net.IP, 4)
-				binary.BigEndian.PutUint32(newIP, ipint)
-
-				if ips != "" {
-					ips = ips + "," + "\"" + newIP.String() + "\""
-				} else {
-					ips = "\"" + newIP.String() + "\""
-				}
-
-				startIP = newIP
-			}
-
-			return ips
-		},
 		"RequiresFakeAgentOutput": func() bool {
 			return cs.Properties.OrchestratorProfile.OrchestratorType == api.Kubernetes
 		},
@@ -947,6 +930,9 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		},
 		"IsAzureCNI": func() bool {
 			return cs.Properties.OrchestratorProfile.IsAzureCNI()
+		},
+		"IsPrivateCluster": func() bool {
+			return cs.Properties.OrchestratorProfile.KubernetesConfig != nil && cs.Properties.OrchestratorProfile.KubernetesConfig.EnablePrivateCluster
 		},
 		"UseManagedIdentity": func() bool {
 			return cs.Properties.OrchestratorProfile.KubernetesConfig.UseManagedIdentity
@@ -1018,11 +1004,32 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return fmt.Sprintf("\"customData\": \"[base64(concat('#cloud-config\\n\\n', '%s'))]\",", str)
 		},
 		"GetDCOSWindowsAgentCustomData": func(profile *api.AgentPoolProfile) string {
-			str := getBase64CustomScript(dcosWindowsProvision)
+			agentPreprovisionExtension := ""
+			if profile.PreprovisionExtension != nil {
+				agentPreprovisionExtension += "\n"
+				agentPreprovisionExtension += makeAgentExtensionScriptCommands(cs, profile)
+			}
+			b, err := Asset(dcosWindowsProvision)
+			if err != nil {
+				// this should never happen and this is a bug
+				panic(fmt.Sprintf("BUG: %s", err.Error()))
+			}
+			// translate the parameters
+			csStr := string(b)
+			csStr = strings.Replace(csStr, "PREPROVISION_EXTENSION", agentPreprovisionExtension, -1)
+			csStr = strings.Replace(csStr, "\r\n", "\n", -1)
+			str := getBase64CustomScriptFromStr(csStr)
 			return fmt.Sprintf("\"customData\": \"%s\"", str)
 		},
 		"GetDCOSWindowsAgentCustomNodeAttributes": func(profile *api.AgentPoolProfile) string {
 			return getDCOSWindowsAgentCustomAttributes(profile)
+		},
+		"GetDCOSWindowsAgentPreprovisionParameters": func(profile *api.AgentPoolProfile) string {
+			agentPreprovisionExtensionParameters := ""
+			if profile.PreprovisionExtension != nil {
+				agentPreprovisionExtensionParameters = getDCOSWindowsAgentPreprovisionParameters(cs, profile)
+			}
+			return agentPreprovisionExtensionParameters
 		},
 		"GetMasterAllowedSizes": func() string {
 			if t.ClassicMode {
@@ -1227,6 +1234,9 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			}
 			return false
 		},
+		"IsNSeriesSKU": func(profile *api.AgentPoolProfile) bool {
+			return isNSeriesSKU(profile)
+		},
 		"GetGPUDriversInstallScript": func(profile *api.AgentPoolProfile) string {
 			return getGPUDriversInstallScript(profile)
 		},
@@ -1298,6 +1308,8 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 				dC := getAddonContainersIndexByName(dashboardAddon.Containers, DefaultDashboardAddonName)
 				reschedulerAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultReschedulerAddonName)
 				rC := getAddonContainersIndexByName(reschedulerAddon.Containers, DefaultReschedulerAddonName)
+				metricsServerAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultMetricsServerAddonName)
+				mC := getAddonContainersIndexByName(metricsServerAddon.Containers, DefaultMetricsServerAddonName)
 				switch attr {
 				case "kubernetesHyperkubeSpec":
 					val = cs.Properties.OrchestratorProfile.KubernetesConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["hyperkube"]
@@ -1469,6 +1481,24 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 					} else {
 						val = ""
 					}
+				case "kubernetesTillerMaxHistory":
+					if tC > -1 {
+						if _, ok := tillerAddon.Config["max-history"]; ok {
+							val = tillerAddon.Config["max-history"]
+						} else {
+							val = "0"
+						}
+					} else {
+						val = "0"
+					}
+				case "kubernetesMetricsServerSpec":
+					if mC > -1 {
+						if metricsServerAddon.Containers[mC].Image != "" {
+							val = metricsServerAddon.Containers[mC].Image
+						}
+					} else {
+						val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion][DefaultMetricsServerAddonName]
+					}
 				case "kubernetesReschedulerSpec":
 					if rC > -1 {
 						if reschedulerAddon.Containers[rC].Image != "" {
@@ -1523,6 +1553,8 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 					val = strconv.Itoa(cs.Properties.OrchestratorProfile.KubernetesConfig.CloudProviderRateLimitBucket)
 				case "kubeBinariesSASURL":
 					val = cloudSpecConfig.KubernetesSpecConfig.KubeBinariesSASURLBase + KubeConfigs[k8sVersion]["windowszip"]
+				case "windowsPackageSASURLBase":
+					val = cloudSpecConfig.KubernetesSpecConfig.WindowsPackageSASURLBase
 				case "kubeClusterCidr":
 					val = DefaultKubernetesClusterSubnet
 				case "kubeDNSServiceIP":
@@ -1561,8 +1593,22 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"UseCloudControllerManager": func() bool {
 			return cs.Properties.OrchestratorProfile.KubernetesConfig.UseCloudControllerManager != nil && *cs.Properties.OrchestratorProfile.KubernetesConfig.UseCloudControllerManager
 		},
+		"AdminGroupID": func() bool {
+			return cs.Properties.AADProfile != nil && cs.Properties.AADProfile.AdminGroupID != ""
+		},
 		"EnableDataEncryptionAtRest": func() bool {
 			return helpers.IsTrueBoolPointer(cs.Properties.OrchestratorProfile.KubernetesConfig.EnableDataEncryptionAtRest)
+		},
+		"EnableAggregatedAPIs": func() bool {
+			if cs.Properties.OrchestratorProfile.KubernetesConfig.EnableAggregatedAPIs {
+				return true
+			} else if isKubernetesVersionGe(cs.Properties.OrchestratorProfile.OrchestratorVersion, "1.9.0") {
+				return true
+			}
+			return false
+		},
+		"EnablePodSecurityPolicy": func() bool {
+			return helpers.IsTrueBoolPointer(cs.Properties.OrchestratorProfile.KubernetesConfig.EnablePodSecurityPolicy)
 		},
 		// inspired by http://stackoverflow.com/questions/18276173/calling-a-template-with-several-pipeline-parameters/18276968#18276968
 		"dict": func(values ...interface{}) (map[string]interface{}, error) {
@@ -1603,6 +1649,10 @@ func makeAgentExtensionScriptCommands(cs *api.ContainerService, profile *api.Age
 	if profile.IsAvailabilitySets() {
 		copyIndex = fmt.Sprintf("',copyIndex(variables('%sOffset')),'", profile.Name)
 	}
+	if profile.OSType == api.Windows {
+		return makeWindowsExtensionScriptCommands(profile.PreprovisionExtension,
+			cs.Properties.ExtensionProfiles, copyIndex)
+	}
 	return makeExtensionScriptCommands(profile.PreprovisionExtension,
 		cs.Properties.ExtensionProfiles, copyIndex)
 }
@@ -1623,8 +1673,43 @@ func makeExtensionScriptCommands(extension *api.Extension, extensionProfiles []*
 	extensionsParameterReference := fmt.Sprintf("parameters('%sParameters')", extensionProfile.Name)
 	scriptURL := getExtensionURL(extensionProfile.RootURL, extensionProfile.Name, extensionProfile.Version, extensionProfile.Script, extensionProfile.URLQuery)
 	scriptFilePath := fmt.Sprintf("/opt/azure/containers/extensions/%s/%s", extensionProfile.Name, extensionProfile.Script)
-	return fmt.Sprintf("- sudo /usr/bin/curl -o %s --create-dirs \"%s\" \n- sudo /bin/chmod 744 %s \n- sudo %s ',%s,' > /var/log/%s-output.log",
+	return fmt.Sprintf("- sudo /usr/bin/curl --retry 5 --retry-delay 10 --retry-max-time 30 -o %s --create-dirs \"%s\" \n- sudo /bin/chmod 744 %s \n- sudo %s ',%s,' > /var/log/%s-output.log",
 		scriptFilePath, scriptURL, scriptFilePath, scriptFilePath, extensionsParameterReference, extensionProfile.Name)
+}
+
+func makeWindowsExtensionScriptCommands(extension *api.Extension, extensionProfiles []*api.ExtensionProfile, copyIndex string) string {
+	var extensionProfile *api.ExtensionProfile
+	for _, eP := range extensionProfiles {
+		if strings.EqualFold(eP.Name, extension.Name) {
+			extensionProfile = eP
+			break
+		}
+	}
+
+	if extensionProfile == nil {
+		panic(fmt.Sprintf("%s extension referenced was not found in the extension profile", extension.Name))
+	}
+
+	scriptURL := getExtensionURL(extensionProfile.RootURL, extensionProfile.Name, extensionProfile.Version, extensionProfile.Script, extensionProfile.URLQuery)
+	scriptFileDir := fmt.Sprintf("$env:SystemDrive:/AzureData/extensions/%s", extensionProfile.Name)
+	scriptFilePath := fmt.Sprintf("%s/%s", scriptFileDir, extensionProfile.Script)
+	return fmt.Sprintf("New-Item -ItemType Directory -Force -Path \"%s\" ; Invoke-WebRequest -Uri \"%s\" -OutFile \"%s\" ; powershell \"%s %s\"\n", scriptFileDir, scriptURL, scriptFilePath, scriptFilePath, "$preprovisionExtensionParams")
+}
+
+func getDCOSWindowsAgentPreprovisionParameters(cs *api.ContainerService, profile *api.AgentPoolProfile) string {
+	extension := profile.PreprovisionExtension
+
+	var extensionProfile *api.ExtensionProfile
+
+	for _, eP := range cs.Properties.ExtensionProfiles {
+		if strings.EqualFold(eP.Name, extension.Name) {
+			extensionProfile = eP
+			break
+		}
+	}
+
+	parms := extensionProfile.ExtensionParameters
+	return parms
 }
 
 func getPackageGUID(orchestratorType string, orchestratorVersion string, masterCount int) string {
@@ -1662,23 +1747,50 @@ func getPackageGUID(orchestratorType string, orchestratorVersion string, masterC
 	return ""
 }
 
+func isNSeriesSKU(profile *api.AgentPoolProfile) bool {
+	return strings.Contains(profile.VMSize, "Standard_N")
+}
+
 func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 
 	// latest version of the drivers. Later this parameter could be bubbled up so that users can choose specific driver versions.
-	dv := "384"
+	dv := "384.111"
+	dest := "/usr/local/nvidia"
 
 	/*
 		First we remove the nouveau drivers, which are the open source drivers for NVIDIA cards. Nouveau is installed on NV Series VMs by default.
-		Then we add the graphics-drivers ppa repository and get the proprietary drivers from there.
+		We also installed needed dependencies.
 	*/
-	ppaScript := fmt.Sprintf(`- rmmod nouveau
+	installScript := fmt.Sprintf(`- rmmod nouveau
 - sh -c "echo \"blacklist nouveau\" >> /etc/modprobe.d/blacklist.conf"
 - update-initramfs -u
-- sudo add-apt-repository -y ppa:graphics-drivers
-- sudo apt-get update
-- sudo apt-get install -y nvidia-%s
-- sudo nvidia-smi
-- sudo systemctl restart kubelet`, dv)
+- apt_get_update
+- retrycmd_if_failure 5 10 apt-get install -y linux-headers-$(uname -r) gcc make
+- mkdir -p %s
+- cd %s`, dest, dest)
+
+	/*
+		Download the .run file from NVIDIA.
+		Nvidia libraries are always install in /usr/lib/x86_64-linux-gnu, and there is no option in the run file to change this.
+		Instead we use Overlayfs to move the newly installed libraries under /usr/local/nvidia/lib64
+	*/
+	installScript += fmt.Sprintf(`
+- retrycmd_if_failure 5 10 curl -fLS https://us.download.nvidia.com/tesla/%s/NVIDIA-Linux-x86_64-%s.run -o nvidia-drivers-%s
+- mkdir -p lib64 overlay-workdir
+- mount -t overlay -o lowerdir=/usr/lib/x86_64-linux-gnu,upperdir=lib64,workdir=overlay-workdir none /usr/lib/x86_64-linux-gnu`, dv, dv, dv)
+
+	/*
+		Install the drivers and update /etc/ld.so.conf.d/nvidia.conf which will make the libraries discoverable through $LD_LIBRARY_PATH.
+		Run nvidia-smi to test the installation, unmount overlayfs and restard kubelet (GPUs are only discovered when kubelet starts)
+	*/
+	installScript += fmt.Sprintf(`
+- sh nvidia-drivers-%s --silent --accept-license --no-drm --utility-prefix="%s" --opengl-prefix="%s"
+- echo "%s" > /etc/ld.so.conf.d/nvidia.conf
+- ldconfig
+- umount /usr/lib/x86_64-linux-gnu
+- nvidia-modprobe -u -c0
+- %s/bin/nvidia-smi
+- retrycmd_if_failure 5 10 systemctl restart kubelet`, dv, dest, dest, fmt.Sprintf("%s/lib64", dest), dest)
 
 	// We don't have an agreement in place with NVIDIA to provide the drivers on every sku. For this VMs we simply log a warning message.
 	na := getGPUDriversNotInstalledWarningMessage(profile.VMSize)
@@ -1687,14 +1799,14 @@ func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 	   that we have an agreement with NVIDIA for this specific gpu. Otherwise use the warning message.
 	*/
 	dm := map[string]string{
-		"Standard_NC6":      ppaScript,
-		"Standard_NC12":     ppaScript,
-		"Standard_NC24":     ppaScript,
-		"Standard_NC24r":    ppaScript,
-		"Standard_NV6":      ppaScript,
-		"Standard_NV12":     ppaScript,
-		"Standard_NV24":     ppaScript,
-		"Standard_NV24r":    ppaScript,
+		"Standard_NC6":      installScript,
+		"Standard_NC12":     installScript,
+		"Standard_NC24":     installScript,
+		"Standard_NC24r":    installScript,
+		"Standard_NV6":      installScript,
+		"Standard_NV12":     installScript,
+		"Standard_NV24":     installScript,
+		"Standard_NV24r":    installScript,
 		"Standard_NC6_v2":   na,
 		"Standard_NC12_v2":  na,
 		"Standard_NC24_v2":  na,

@@ -512,7 +512,7 @@ func convertVLabsWindowsProfile(vlabs *vlabs.WindowsProfile, api *WindowsProfile
 func convertV20160930OrchestratorProfile(v20160930 *v20160930.OrchestratorProfile, api *OrchestratorProfile) {
 	api.OrchestratorType = v20160930.OrchestratorType
 	if api.OrchestratorType == Kubernetes {
-		api.OrchestratorVersion = common.KubernetesVersion1Dot5Dot8
+		api.OrchestratorVersion = common.KubernetesVersion1Dot6Dot9
 	} else if api.OrchestratorType == DCOS {
 		api.OrchestratorVersion = DCOSVersion1Dot9Dot0
 	}
@@ -613,6 +613,7 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	api.EnableRbac = vlabs.EnableRbac
 	api.EnableSecureKubelet = vlabs.EnableSecureKubelet
 	api.EnableAggregatedAPIs = vlabs.EnableAggregatedAPIs
+	api.EnablePrivateCluster = vlabs.EnablePrivateCluster
 	api.EnableDataEncryptionAtRest = vlabs.EnableDataEncryptionAtRest
 	api.EnablePodSecurityPolicy = vlabs.EnablePodSecurityPolicy
 	api.GCHighThreshold = vlabs.GCHighThreshold
@@ -1010,6 +1011,7 @@ func convertVLabsAADProfile(vlabs *vlabs.AADProfile, api *AADProfile) {
 	api.ClientAppID = vlabs.ClientAppID
 	api.ServerAppID = vlabs.ServerAppID
 	api.TenantID = vlabs.TenantID
+	api.AdminGroupID = vlabs.AdminGroupID
 }
 
 func addDCOSPublicAgentPool(api *Properties) {

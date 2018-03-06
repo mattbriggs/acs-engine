@@ -1,9 +1,12 @@
 package acsengine
 
 import (
-	"encoding/binary"
+	"bytes"
 	"fmt"
 	"net"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/api/common"
@@ -14,7 +17,7 @@ const (
 	// AzureCniPluginVer specifies version of Azure CNI plugin, which has been mirrored from
 	// https://github.com/Azure/azure-container-networking/releases/download/${AZURE_PLUGIN_VER}/azure-vnet-cni-linux-amd64-${AZURE_PLUGIN_VER}.tgz
 	// to https://acs-mirror.azureedge.net/cni/
-	AzureCniPluginVer = "v1.0.1"
+	AzureCniPluginVer = "v1.0.2"
 )
 
 var (
@@ -25,6 +28,7 @@ var (
 		ACIConnectorImageBase:            "microsoft/",
 		EtcdDownloadURLBase:              "https://acs-mirror.azureedge.net/github-coreos",
 		KubeBinariesSASURLBase:           "https://acs-mirror.azureedge.net/wink8s/",
+		WindowsPackageSASURLBase:         "https://acs-mirror.azureedge.net/wink8s/",
 		WindowsTelemetryGUID:             "fb801154-36b9-41bc-89c2-f4d4f05472b0",
 		CNIPluginsDownloadURL:            "https://acs-mirror.azureedge.net/cni/cni-plugins-amd64-latest.tgz",
 		VnetCNILinuxPluginsDownloadURL:   "https://acs-mirror.azureedge.net/cni/azure-vnet-cni-linux-amd64-" + AzureCniPluginVer + ".tgz",
@@ -50,7 +54,7 @@ var (
 		ImageOffer:     "UbuntuServer",
 		ImageSku:       "16.04-LTS",
 		ImagePublisher: "Canonical",
-		ImageVersion:   "16.04.201801120",
+		ImageVersion:   "16.04.201801260",
 	}
 
 	//DefaultRHELOSImageConfig is the RHEL Linux distribution.
@@ -117,7 +121,12 @@ var (
 			ResourceManagerVMDNSSuffix: "cloudapp.usgovcloudapi.net",
 		},
 		OSImageConfig: map[api.Distro]AzureOSImageConfig{
-			api.Ubuntu: DefaultUbuntuImageConfig,
+			api.Ubuntu: {
+				ImageOffer:     "UbuntuServer",
+				ImageSku:       "16.04-LTS",
+				ImagePublisher: "Canonical",
+				ImageVersion:   "latest",
+			},
 			api.RHEL:   DefaultRHELOSImageConfig,
 			api.CoreOS: DefaultCoreOSImageConfig,
 		},
@@ -137,6 +146,7 @@ var (
 			ACIConnectorImageBase:            DefaultKubernetesSpecConfig.ACIConnectorImageBase,
 			EtcdDownloadURLBase:              DefaultKubernetesSpecConfig.EtcdDownloadURLBase,
 			KubeBinariesSASURLBase:           DefaultKubernetesSpecConfig.KubeBinariesSASURLBase,
+			WindowsPackageSASURLBase:         DefaultKubernetesSpecConfig.WindowsPackageSASURLBase,
 			WindowsTelemetryGUID:             DefaultKubernetesSpecConfig.WindowsTelemetryGUID,
 			CNIPluginsDownloadURL:            DefaultKubernetesSpecConfig.CNIPluginsDownloadURL,
 			VnetCNILinuxPluginsDownloadURL:   DefaultKubernetesSpecConfig.VnetCNILinuxPluginsDownloadURL,
@@ -175,6 +185,9 @@ var (
 				CPULimits:      "50m",
 				MemoryLimits:   "150Mi",
 			},
+		},
+		Config: map[string]string{
+			"max-history": strconv.Itoa(DefaultTillerMaxHistory),
 		},
 	}
 
@@ -228,15 +241,26 @@ var (
 			},
 		},
 	}
+
+	// DefaultMetricsServerAddonsConfig is the default metrics-server Kubernetes addon Config
+	DefaultMetricsServerAddonsConfig = api.KubernetesAddon{
+		Name:    DefaultMetricsServerAddonName,
+		Enabled: pointerToBool(api.DefaultMetricsServerAddonEnabled),
+		Containers: []api.KubernetesContainerSpec{
+			{
+				Name: DefaultMetricsServerAddonName,
+			},
+		},
+	}
 )
 
 // SetPropertiesDefaults for the container Properties, returns true if certs are generated
-func SetPropertiesDefaults(cs *api.ContainerService) (bool, error) {
+func SetPropertiesDefaults(cs *api.ContainerService, isUpgrade bool) (bool, error) {
 	properties := cs.Properties
 
 	setOrchestratorDefaults(cs)
 
-	setMasterNetworkDefaults(properties)
+	setMasterNetworkDefaults(properties, isUpgrade)
 
 	setHostedMasterNetworkDefaults(properties)
 
@@ -279,6 +303,7 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 				DefaultACIConnectorAddonsConfig,
 				DefaultDashboardAddonsConfig,
 				DefaultReschedulerAddonsConfig,
+				DefaultMetricsServerAddonsConfig,
 			}
 		} else {
 			// For each addon, provide default configuration if user didn't provide its own config
@@ -302,6 +327,11 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 				// Provide default acs-engine config for Rescheduler
 				o.KubernetesConfig.Addons = append(o.KubernetesConfig.Addons, DefaultReschedulerAddonsConfig)
 			}
+			m := getAddonsIndexByName(o.KubernetesConfig.Addons, DefaultMetricsServerAddonName)
+			if m < 0 {
+				// Provide default acs-engine config for Metrics Server
+				o.KubernetesConfig.Addons = append(o.KubernetesConfig.Addons, DefaultMetricsServerAddonsConfig)
+			}
 		}
 		if o.KubernetesConfig.KubernetesImageBase == "" {
 			o.KubernetesConfig.KubernetesImageBase = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase
@@ -310,7 +340,9 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 			o.KubernetesConfig.EtcdVersion = DefaultEtcdVersion
 		}
 		if a.HasWindows() {
-			o.KubernetesConfig.NetworkPolicy = DefaultNetworkPolicyWindows
+			if o.KubernetesConfig.NetworkPolicy == "" {
+				o.KubernetesConfig.NetworkPolicy = DefaultNetworkPolicyWindows
+			}
 		} else {
 			if o.KubernetesConfig.NetworkPolicy == "" {
 				o.KubernetesConfig.NetworkPolicy = DefaultNetworkPolicy
@@ -394,6 +426,10 @@ func setOrchestratorDefaults(cs *api.ContainerService) {
 		if a.OrchestratorProfile.KubernetesConfig.Addons[r].IsEnabled(api.DefaultReschedulerAddonEnabled) {
 			a.OrchestratorProfile.KubernetesConfig.Addons[r] = assignDefaultAddonVals(a.OrchestratorProfile.KubernetesConfig.Addons[r], DefaultReschedulerAddonsConfig)
 		}
+		m := getAddonsIndexByName(a.OrchestratorProfile.KubernetesConfig.Addons, DefaultMetricsServerAddonName)
+		if a.OrchestratorProfile.KubernetesConfig.Addons[m].IsEnabled(api.DefaultMetricsServerAddonEnabled) {
+			a.OrchestratorProfile.KubernetesConfig.Addons[m] = assignDefaultAddonVals(a.OrchestratorProfile.KubernetesConfig.Addons[m], DefaultMetricsServerAddonsConfig)
+		}
 
 		if "" == a.OrchestratorProfile.KubernetesConfig.EtcdDiskSizeGB {
 			a.OrchestratorProfile.KubernetesConfig.EtcdDiskSizeGB = DefaultEtcdDiskSize
@@ -446,7 +482,7 @@ func setHostedMasterNetworkDefaults(a *api.Properties) {
 }
 
 // SetMasterNetworkDefaults for masters
-func setMasterNetworkDefaults(a *api.Properties) {
+func setMasterNetworkDefaults(a *api.Properties, isUpgrade bool) {
 	if a.MasterProfile == nil {
 		return
 	}
@@ -461,22 +497,37 @@ func setMasterNetworkDefaults(a *api.Properties) {
 			if a.OrchestratorProfile.IsAzureCNI() {
 				// When VNET integration is enabled, all masters, agents and pods share the same large subnet.
 				a.MasterProfile.Subnet = a.OrchestratorProfile.KubernetesConfig.ClusterSubnet
-				a.MasterProfile.FirstConsecutiveStaticIP = getFirstConsecutiveStaticIPAddress(a.MasterProfile.Subnet)
+				// FirstConsecutiveStaticIP is not reset if it is upgrade and some value already exists
+				if !isUpgrade || len(a.MasterProfile.FirstConsecutiveStaticIP) == 0 {
+					a.MasterProfile.FirstConsecutiveStaticIP = getFirstConsecutiveStaticIPAddress(a.MasterProfile.Subnet)
+				}
 			} else {
 				a.MasterProfile.Subnet = DefaultKubernetesMasterSubnet
-				a.MasterProfile.FirstConsecutiveStaticIP = DefaultFirstConsecutiveKubernetesStaticIP
+				// FirstConsecutiveStaticIP is not reset if it is upgrade and some value already exists
+				if !isUpgrade || len(a.MasterProfile.FirstConsecutiveStaticIP) == 0 {
+					a.MasterProfile.FirstConsecutiveStaticIP = DefaultFirstConsecutiveKubernetesStaticIP
+				}
 			}
 		} else if a.HasWindows() {
 			a.MasterProfile.Subnet = DefaultSwarmWindowsMasterSubnet
-			a.MasterProfile.FirstConsecutiveStaticIP = DefaultSwarmWindowsFirstConsecutiveStaticIP
+			// FirstConsecutiveStaticIP is not reset if it is upgrade and some value already exists
+			if !isUpgrade || len(a.MasterProfile.FirstConsecutiveStaticIP) == 0 {
+				a.MasterProfile.FirstConsecutiveStaticIP = DefaultSwarmWindowsFirstConsecutiveStaticIP
+			}
 		} else {
 			a.MasterProfile.Subnet = DefaultMasterSubnet
-			a.MasterProfile.FirstConsecutiveStaticIP = DefaultFirstConsecutiveStaticIP
+			// FirstConsecutiveStaticIP is not reset if it is upgrade and some value already exists
+			if !isUpgrade || len(a.MasterProfile.FirstConsecutiveStaticIP) == 0 {
+				a.MasterProfile.FirstConsecutiveStaticIP = DefaultFirstConsecutiveStaticIP
+			}
 		}
 	}
 
 	// Set the default number of IP addresses allocated for masters.
 	if a.MasterProfile.IPAddressCount == 0 {
+		// Allocate one IP address for the node.
+		a.MasterProfile.IPAddressCount = 1
+
 		// Allocate IP addresses for pods if VNET integration is enabled.
 		if a.OrchestratorProfile.IsAzureCNI() {
 			if a.OrchestratorProfile.OrchestratorType == api.Kubernetes {
@@ -674,23 +725,27 @@ func certsAlreadyPresent(c *api.CertificateProfile, m int) map[string]bool {
 
 // getFirstConsecutiveStaticIPAddress returns the first static IP address of the given subnet.
 func getFirstConsecutiveStaticIPAddress(subnetStr string) string {
-	ip, _, err := net.ParseCIDR(subnetStr)
+	_, subnet, err := net.ParseCIDR(subnetStr)
 	if err != nil {
 		return DefaultFirstConsecutiveKubernetesStaticIP
 	}
 
-	ipv4 := ip.To4()
-	if ipv4 == nil {
-		return DefaultFirstConsecutiveKubernetesStaticIP
+	// Find the first and last octet of the host bits.
+	ones, bits := subnet.Mask.Size()
+	firstOctet := ones / 8
+	lastOctet := bits/8 - 1
+
+	// Set the remaining host bits in the first octet.
+	subnet.IP[firstOctet] |= (1 << byte((8 - (ones % 8)))) - 1
+
+	// Fill the intermediate octets with 1s and last octet with offset. This is done so to match
+	// the existing behavior of allocating static IP addresses from the last /24 of the subnet.
+	for i := firstOctet + 1; i < lastOctet; i++ {
+		subnet.IP[i] = 255
 	}
+	subnet.IP[lastOctet] = DefaultKubernetesFirstConsecutiveStaticIPOffset
 
-	ipint := binary.BigEndian.Uint32(ipv4)
-
-	// First 4 IPs will be reserved in Azure and cannot use.
-	ipint += 4
-	startIP := make(net.IP, 4)
-	binary.BigEndian.PutUint32(startIP, ipint)
-	return startIP.String()
+	return subnet.IP.String()
 }
 
 func getAddonsIndexByName(addons []api.KubernetesAddon, name string) int {
@@ -713,6 +768,9 @@ func getAddonContainersIndexByName(containers []api.KubernetesContainerSpec, nam
 
 // assignDefaultAddonVals will assign default values to addon from defaults, for each property in addon that has a zero value
 func assignDefaultAddonVals(addon, defaults api.KubernetesAddon) api.KubernetesAddon {
+	if addon.Enabled == nil {
+		addon.Enabled = defaults.Enabled
+	}
 	for i := range defaults.Containers {
 		c := getAddonContainersIndexByName(addon.Containers, defaults.Containers[i].Name)
 		if c < 0 {
@@ -756,4 +814,53 @@ func isKubernetesVersionGe(actualVersion, version string) bool {
 	orchestratorVersion, _ := semver.NewVersion(actualVersion)
 	constraint, _ := semver.NewConstraint(">=" + version)
 	return constraint.Check(orchestratorVersion)
+}
+
+// combine user-provided --feature-gates vals with defaults
+// a minimum k8s version may be declared as required for defaults assignment
+func addDefaultFeatureGates(m map[string]string, version string, minVersion string, defaults string) {
+	if minVersion != "" {
+		if isKubernetesVersionGe(version, minVersion) {
+			m["--feature-gates"] = combineValues(m["--feature-gates"], defaults)
+		} else {
+			m["--feature-gates"] = combineValues(m["--feature-gates"], "")
+		}
+	} else {
+		m["--feature-gates"] = combineValues(m["--feature-gates"], defaults)
+	}
+}
+
+func combineValues(inputs ...string) string {
+	var valueMap map[string]string
+	valueMap = make(map[string]string)
+	for _, input := range inputs {
+		applyValueStringToMap(valueMap, input)
+	}
+	return mapToString(valueMap)
+}
+
+func applyValueStringToMap(valueMap map[string]string, input string) {
+	values := strings.Split(input, ",")
+	for index := 0; index < len(values); index++ {
+		// trim spaces (e.g. if the input was "foo=true, bar=true" - we want to drop the space after the comma)
+		value := strings.Trim(values[index], " ")
+		valueParts := strings.Split(value, "=")
+		if len(valueParts) == 2 {
+			valueMap[valueParts[0]] = valueParts[1]
+		}
+	}
+}
+
+func mapToString(valueMap map[string]string) string {
+	// Order by key for consistency
+	keys := []string{}
+	for key := range valueMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var buf bytes.Buffer
+	for _, key := range keys {
+		buf.WriteString(fmt.Sprintf("%s=%s,", key, valueMap[key]))
+	}
+	return strings.TrimSuffix(buf.String(), ",")
 }

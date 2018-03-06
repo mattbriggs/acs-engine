@@ -10,9 +10,6 @@
 {{else}}
       "[variables('vnetID')]"
 {{end}}
-{{range $masterOffset := loop 1 GetMasterCount}}
-      ,"[concat(variables('masterNICNamePrefix'), sub({{$masterOffset}}, 1))]"
-{{end}}
       ],
       "location": "[variables('location')]",
       "name": "[concat(variables('{{.Name}}VMNamePrefix'), 'nic-', copyIndex(variables('{{.Name}}Offset')))]",
@@ -68,9 +65,11 @@
         "name": "loop"
       },
       {{if not IsHostedMaster}}
-      "dependsOn": [
-        "[concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))]"
-      ],
+        {{if not IsPrivateCluster}}
+          "dependsOn": [
+            "[concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))]"
+          ],
+        {{end}}
       {{end}}
       "location": "[variables('location')]",
       "name": "[concat(variables('storageAccountPrefixes')[mod(add(copyIndex(),variables('{{.Name}}StorageAccountOffset')),variables('storageAccountPrefixesCount'))],variables('storageAccountPrefixes')[div(add(copyIndex(),variables('{{.Name}}StorageAccountOffset')),variables('storageAccountPrefixesCount'))],variables('{{.Name}}AccountName'))]",
@@ -87,9 +86,11 @@
         "name": "datadiskLoop"
       },
       {{if not IsHostedMaster}}
-      "dependsOn": [
-        "[concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))]"
-      ],
+        {{if not IsPrivateCluster}}
+          "dependsOn": [
+            "[concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))]"
+          ],
+        {{end}}
       {{end}}
       "location": "[variables('location')]",
       "name": "[concat(variables('storageAccountPrefixes')[mod(add(copyIndex(variables('dataStorageAccountPrefixSeed')),variables('{{.Name}}StorageAccountOffset')),variables('storageAccountPrefixesCount'))],variables('storageAccountPrefixes')[div(add(copyIndex(variables('dataStorageAccountPrefixSeed')),variables('{{.Name}}StorageAccountOffset')),variables('storageAccountPrefixesCount'))],variables('{{.Name}}DataAccountName'))]",

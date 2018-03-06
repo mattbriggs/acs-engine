@@ -24,7 +24,8 @@ var (
 	etcdValidVersions = [...]string{"2.2.5", "2.3.0", "2.3.1", "2.3.2", "2.3.3", "2.3.4", "2.3.5", "2.3.6", "2.3.7", "2.3.8",
 		"3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.0.4", "3.0.5", "3.0.6", "3.0.7", "3.0.8", "3.0.9", "3.0.10", "3.0.11", "3.0.12", "3.0.13", "3.0.14", "3.0.15", "3.0.16", "3.0.17",
 		"3.1.0", "3.1.1", "3.1.2", "3.1.2", "3.1.3", "3.1.4", "3.1.5", "3.1.6", "3.1.7", "3.1.8", "3.1.9", "3.1.10",
-		"3.2.0", "3.2.1", "3.2.2", "3.2.3", "3.2.4", "3.2.5", "3.2.6", "3.2.7", "3.2.8", "3.2.9", "3.2.11"}
+		"3.2.0", "3.2.1", "3.2.2", "3.2.3", "3.2.4", "3.2.5", "3.2.6", "3.2.7", "3.2.8", "3.2.9", "3.2.11", "3.2.12",
+		"3.2.13", "3.2.14", "3.2.15", "3.2.16", "3.3.0", "3.3.1"}
 )
 
 const (
@@ -85,9 +86,7 @@ func (o *OrchestratorProfile) Validate(isUpdate bool) error {
 					return err
 				}
 				if o.KubernetesConfig.EnableAggregatedAPIs {
-					if o.OrchestratorVersion == common.KubernetesVersion1Dot5Dot7 ||
-						o.OrchestratorVersion == common.KubernetesVersion1Dot5Dot8 ||
-						o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot6 ||
+					if o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot6 ||
 						o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot9 ||
 						o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot11 {
 						return fmt.Errorf("enableAggregatedAPIs is only available in Kubernetes version %s or greater; unable to validate for Kubernetes version %s",
@@ -101,9 +100,7 @@ func (o *OrchestratorProfile) Validate(isUpdate bool) error {
 					}
 
 					if helpers.IsTrueBoolPointer(o.KubernetesConfig.EnableDataEncryptionAtRest) {
-						if o.OrchestratorVersion == common.KubernetesVersion1Dot5Dot7 ||
-							o.OrchestratorVersion == common.KubernetesVersion1Dot5Dot8 ||
-							o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot6 ||
+						if o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot6 ||
 							o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot9 ||
 							o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot11 {
 							return fmt.Errorf("enableDataEncryptionAtRest is only available in Kubernetes version %s or greater; unable to validate for Kubernetes version %s",
@@ -111,9 +108,27 @@ func (o *OrchestratorProfile) Validate(isUpdate bool) error {
 						}
 					}
 				}
-				if helpers.IsTrueBoolPointer(o.KubernetesConfig.EnablePodSecurityPolicy) &&
-					!helpers.IsTrueBoolPointer(o.KubernetesConfig.EnableRbac) {
-					return fmt.Errorf("enablePodSecurityPolicy requires the enableRbac feature as a prerequisite")
+				if helpers.IsTrueBoolPointer(o.KubernetesConfig.EnablePodSecurityPolicy) {
+					if !helpers.IsTrueBoolPointer(o.KubernetesConfig.EnableRbac) {
+						return fmt.Errorf("enablePodSecurityPolicy requires the enableRbac feature as a prerequisite")
+					}
+					if o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot6 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot9 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot6Dot11 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot0 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot1 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot2 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot4 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot5 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot7 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot9 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot10 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot12 ||
+						o.OrchestratorVersion == common.KubernetesVersion1Dot7Dot13 {
+						return fmt.Errorf("enablePodSecurityPolicy is only supported in acs-engine for Kubernetes version %s or greater; unable to validate for Kubernetes version %s",
+							"1.8.0", o.OrchestratorVersion)
+					}
+
 				}
 			}
 
@@ -227,7 +242,7 @@ func (o *OrchestratorProfile) ValidateForUpgrade() error {
 	case Kubernetes:
 		switch o.OrchestratorVersion {
 		case common.KubernetesVersion1Dot6Dot13:
-		case common.KubernetesVersion1Dot7Dot12:
+		case common.KubernetesVersion1Dot7Dot13:
 		default:
 			return fmt.Errorf("Upgrade to Kubernetes version %s is not supported", o.OrchestratorVersion)
 		}
@@ -303,6 +318,11 @@ func (profile *AADProfile) Validate() error {
 	if len(profile.TenantID) > 0 {
 		if _, err := uuid.FromString(profile.TenantID); err != nil {
 			return fmt.Errorf("tenantID '%v' is invalid", profile.TenantID)
+		}
+	}
+	if len(profile.AdminGroupID) > 0 {
+		if _, err := uuid.FromString(profile.AdminGroupID); err != nil {
+			return fmt.Errorf("adminGroupID '%v' is invalid", profile.AdminGroupID)
 		}
 	}
 	return nil
@@ -479,12 +499,14 @@ func (a *KubernetesConfig) Validate(k8sVersion string) error {
 		common.KubernetesVersion1Dot9Dot0:  true,
 		common.KubernetesVersion1Dot9Dot1:  true,
 		common.KubernetesVersion1Dot9Dot2:  true,
+		common.KubernetesVersion1Dot9Dot3:  true,
 		common.KubernetesVersion1Dot8Dot0:  true,
 		common.KubernetesVersion1Dot8Dot1:  true,
 		common.KubernetesVersion1Dot8Dot2:  true,
 		common.KubernetesVersion1Dot8Dot4:  true,
 		common.KubernetesVersion1Dot8Dot6:  true,
 		common.KubernetesVersion1Dot8Dot7:  true,
+		common.KubernetesVersion1Dot8Dot8:  true,
 		common.KubernetesVersion1Dot7Dot0:  true,
 		common.KubernetesVersion1Dot7Dot1:  true,
 		common.KubernetesVersion1Dot7Dot2:  true,
@@ -494,6 +516,7 @@ func (a *KubernetesConfig) Validate(k8sVersion string) error {
 		common.KubernetesVersion1Dot7Dot9:  true,
 		common.KubernetesVersion1Dot7Dot10: true,
 		common.KubernetesVersion1Dot7Dot12: true,
+		common.KubernetesVersion1Dot7Dot13: true,
 		common.KubernetesVersion1Dot6Dot6:  true,
 		common.KubernetesVersion1Dot6Dot9:  true,
 		common.KubernetesVersion1Dot6Dot11: true,
@@ -639,6 +662,11 @@ func (a *KubernetesConfig) Validate(k8sVersion string) error {
 		common.KubernetesVersion1Dot8Dot4: true,
 		common.KubernetesVersion1Dot8Dot6: true,
 		common.KubernetesVersion1Dot8Dot7: true,
+		common.KubernetesVersion1Dot8Dot8: true,
+		common.KubernetesVersion1Dot9Dot0: true,
+		common.KubernetesVersion1Dot9Dot1: true,
+		common.KubernetesVersion1Dot9Dot2: true,
+		common.KubernetesVersion1Dot9Dot3: true,
 	}
 
 	if a.UseCloudControllerManager != nil && *a.UseCloudControllerManager || a.CustomCcmImage != "" {
@@ -675,7 +703,7 @@ func (a *Properties) validateNetworkPolicy() error {
 	}
 
 	// Temporary safety check, to be removed when Windows support is added.
-	if (networkPolicy == "calico" || networkPolicy == "azure") && a.HasWindows() {
+	if (networkPolicy == "calico") && a.HasWindows() {
 		return fmt.Errorf("networkPolicy '%s' is not supporting windows agents", networkPolicy)
 	}
 

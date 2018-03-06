@@ -137,6 +137,12 @@ func (sc *scaleCmd) validate(cmd *cobra.Command, args []string) {
 		log.Fatalf("error parsing the api model: %s", err.Error())
 	}
 
+	if sc.containerService.Location == "" {
+		sc.containerService.Location = sc.location
+	} else if sc.containerService.Location != sc.location {
+		log.Fatalf("--location does not match api model location")
+	}
+
 	if sc.agentPoolToScale == "" {
 		agentPoolCount := len(sc.containerService.Properties.AgentPoolProfiles)
 		if agentPoolCount > 1 {
@@ -274,7 +280,7 @@ func (sc *scaleCmd) run(cmd *cobra.Command, args []string) error {
 
 	sc.containerService.Properties.AgentPoolProfiles = []*api.AgentPoolProfile{sc.agentPool}
 
-	template, parameters, _, err := templateGenerator.GenerateTemplate(sc.containerService, acsengine.DefaultGeneratorCode)
+	template, parameters, _, err := templateGenerator.GenerateTemplate(sc.containerService, acsengine.DefaultGeneratorCode, false)
 	if err != nil {
 		log.Fatalf("error generating template %s: %s", sc.apiModelPath, err.Error())
 		os.Exit(1)

@@ -63,6 +63,16 @@ func Test_OrchestratorProfile_Validate(t *testing.T) {
 	if err := o.Validate(true); err != nil {
 		t.Errorf("should not have failed on old patch version during update valdiation")
 	}
+
+	o = &OrchestratorProfile{
+		OrchestratorType:    "Kubernetes",
+		OrchestratorVersion: "v1.9.0",
+	}
+
+	if err := o.Validate(false); err != nil {
+		t.Errorf("should not have failed on version with v prefix")
+	}
+
 }
 
 func Test_KubernetesConfig_Validate(t *testing.T) {
@@ -74,19 +84,17 @@ func Test_KubernetesConfig_Validate(t *testing.T) {
 		}
 
 		c = KubernetesConfig{
-			ClusterSubnet:      "10.120.0.0/16",
-			DockerBridgeSubnet: "10.120.1.0/16",
-			MaxPods:            42,
-			CloudProviderConfig: CloudProviderConfig{
-				CloudProviderBackoff:         ValidKubernetesCloudProviderBackoff,
-				CloudProviderBackoffRetries:  ValidKubernetesCloudProviderBackoffRetries,
-				CloudProviderBackoffJitter:   ValidKubernetesCloudProviderBackoffJitter,
-				CloudProviderBackoffDuration: ValidKubernetesCloudProviderBackoffDuration,
-				CloudProviderBackoffExponent: ValidKubernetesCloudProviderBackoffExponent,
-				CloudProviderRateLimit:       ValidKubernetesCloudProviderRateLimit,
-				CloudProviderRateLimitQPS:    ValidKubernetesCloudProviderRateLimitQPS,
-				CloudProviderRateLimitBucket: ValidKubernetesCloudProviderRateLimitBucket,
-			},
+			ClusterSubnet:                "10.120.0.0/16",
+			DockerBridgeSubnet:           "10.120.1.0/16",
+			MaxPods:                      42,
+			CloudProviderBackoff:         ValidKubernetesCloudProviderBackoff,
+			CloudProviderBackoffRetries:  ValidKubernetesCloudProviderBackoffRetries,
+			CloudProviderBackoffJitter:   ValidKubernetesCloudProviderBackoffJitter,
+			CloudProviderBackoffDuration: ValidKubernetesCloudProviderBackoffDuration,
+			CloudProviderBackoffExponent: ValidKubernetesCloudProviderBackoffExponent,
+			CloudProviderRateLimit:       ValidKubernetesCloudProviderRateLimit,
+			CloudProviderRateLimitQPS:    ValidKubernetesCloudProviderRateLimitQPS,
+			CloudProviderRateLimitBucket: ValidKubernetesCloudProviderRateLimitBucket,
 			KubeletConfig: map[string]string{
 				"--node-status-update-frequency": ValidKubernetesNodeStatusUpdateFrequency,
 			},
@@ -250,29 +258,14 @@ func Test_KubernetesConfig_Validate(t *testing.T) {
 		}
 	}
 
-	// Tests that apply to pre-1.6 releases
-	for _, k8sVersion := range []string{common.KubernetesVersion1Dot5Dot8} {
-		c := KubernetesConfig{
-			CloudProviderConfig: CloudProviderConfig{
-				CloudProviderBackoff:   true,
-				CloudProviderRateLimit: true,
-			},
-		}
-		if err := c.Validate(k8sVersion); err == nil {
-			t.Error("should error because backoff and rate limiting are not available before v1.6.6")
-		}
-	}
-
 	// Tests that apply to 1.6 and later releases
 	for _, k8sVersion := range []string{common.KubernetesVersion1Dot6Dot11, common.KubernetesVersion1Dot6Dot12, common.KubernetesVersion1Dot6Dot13,
-		common.KubernetesVersion1Dot7Dot7, common.KubernetesVersion1Dot7Dot9, common.KubernetesVersion1Dot7Dot10, common.KubernetesVersion1Dot7Dot12,
-		common.KubernetesVersion1Dot8Dot1, common.KubernetesVersion1Dot8Dot2, common.KubernetesVersion1Dot8Dot4, common.KubernetesVersion1Dot8Dot6, common.KubernetesVersion1Dot8Dot7,
-		common.KubernetesVersion1Dot9Dot0, common.KubernetesVersion1Dot9Dot1, common.KubernetesVersion1Dot9Dot2} {
+		common.KubernetesVersion1Dot7Dot7, common.KubernetesVersion1Dot7Dot9, common.KubernetesVersion1Dot7Dot10, common.KubernetesVersion1Dot7Dot12, common.KubernetesVersion1Dot7Dot13,
+		common.KubernetesVersion1Dot8Dot1, common.KubernetesVersion1Dot8Dot2, common.KubernetesVersion1Dot8Dot4, common.KubernetesVersion1Dot8Dot6, common.KubernetesVersion1Dot8Dot7, common.KubernetesVersion1Dot8Dot8,
+		common.KubernetesVersion1Dot9Dot0, common.KubernetesVersion1Dot9Dot1, common.KubernetesVersion1Dot9Dot2, common.KubernetesVersion1Dot9Dot3} {
 		c := KubernetesConfig{
-			CloudProviderConfig: CloudProviderConfig{
-				CloudProviderBackoff:   true,
-				CloudProviderRateLimit: true,
-			},
+			CloudProviderBackoff:   true,
+			CloudProviderRateLimit: true,
 		}
 		if err := c.Validate(k8sVersion); err != nil {
 			t.Error("should not error when basic backoff and rate limiting are set to true with no options")
@@ -280,16 +273,6 @@ func Test_KubernetesConfig_Validate(t *testing.T) {
 	}
 
 	trueVal := true
-	// Tests that apply to pre-1.8 releases
-	for _, k8sVersion := range []string{common.KubernetesVersion1Dot5Dot8, common.KubernetesVersion1Dot6Dot11, common.KubernetesVersion1Dot7Dot7} {
-		c := KubernetesConfig{
-			UseCloudControllerManager: &trueVal,
-		}
-		if err := c.Validate(k8sVersion); err == nil {
-			t.Error("should error because UseCloudControllerManager is not available before v1.8")
-		}
-	}
-
 	// Tests that apply to 1.8 and later releases
 	for _, k8sVersion := range []string{common.KubernetesVersion1Dot8Dot1} {
 		c := KubernetesConfig{
@@ -518,13 +501,13 @@ func Test_Properties_ValidateContainerRuntime(t *testing.T) {
 	p.OrchestratorProfile = &OrchestratorProfile{}
 	p.OrchestratorProfile.OrchestratorType = Kubernetes
 
-	for _, policy := range ContainerRuntimeValues {
+	for _, runtime := range ContainerRuntimeValues {
 		p.OrchestratorProfile.KubernetesConfig = &KubernetesConfig{}
-		p.OrchestratorProfile.KubernetesConfig.NetworkPolicy = policy
+		p.OrchestratorProfile.KubernetesConfig.ContainerRuntime = runtime
 		if err := p.validateContainerRuntime(); err != nil {
 			t.Errorf(
 				"should not error on containerRuntime=\"%s\"",
-				policy,
+				runtime,
 			)
 		}
 	}
