@@ -382,8 +382,10 @@
 {{end}}
         ]
 {{if not IsVNETIntegrated}}
-        ,
-        "enableIPForwarding": true
+    {{if not IsAzureStackCloud}}
+		,
+		"enableIPForwarding": true
+	{{end}}
 {{end}}
 {{if .MasterProfile.IsCustomVNET}}
         ,"networkSecurityGroup": {
