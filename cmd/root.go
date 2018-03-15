@@ -1,6 +1,7 @@
 package cmd
 
 import (
+    "os"
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -90,6 +91,8 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 		log.Fatal("--subscription-id is required (and must be a valid UUID)")
 	}
 
+	os.Setenv("AZURE_ENVIRONMENT_FILEPATH", "/etc/kubernetes/azurestackcloud.json")
+	log.Infoln(fmt.Sprintf("AzureEnvironment: %s", authArgs.RawAzureEnvironment))
 	env, err := azure.EnvironmentFromName(authArgs.RawAzureEnvironment)
 	if err != nil {
 		log.Fatal("failed to parse --azure-env as a valid target Azure cloud environment")

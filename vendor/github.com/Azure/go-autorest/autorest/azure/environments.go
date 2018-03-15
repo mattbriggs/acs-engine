@@ -18,9 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"path"
+	"os"
 	"strings"
 )
+
+// EnvironmentFilepathName captures the name of the environment variable containing the path to the file
+// to be used while populating the Azure Environment.
+const EnvironmentFilepathName = "AZURE_ENVIRONMENT_FILEPATH"
 
 var environments = map[string]Environment{
 	"AZURECHINACLOUD":        ChinaCloud,
@@ -136,20 +140,21 @@ var (
 	}
 )
 
-// EnvironmentFromName returns an Environment based on the common name specified
+// EnvironmentFromName returns an Environment based on the common name specified.
 func EnvironmentFromName(name string) (Environment, error) {
 	// IMPORTANT
 	// As per @radhikagupta5:
 	// This is technical debt, fundamentally here because Kubernetes is not currently accepting
 	// contributions to the providers. Once that is an option, the provider should be updated to
 	// directly call `EnvironmentFromFile`. Until then, we rely on dispatching Azure Stack environment creation
-	var toUpperName = strings.ToUpper(name)
-
-	if strings.EqualFold(toUpperName, "AZURESTACKCLOUD") {
-		return EnvironmentFromFile(path.Join("etc", "kubernetes", "azurestackcloud.json"), name)
+	// from this method based on the name that is provided to us.
+	log.Infoln(fmt.Sprintf("EnvironmentFromName: AzureEnvironment is: %s", name))
+	if strings.EqualFold(name, "AZURESTACKCLOUD") {
+		return EnvironmentFromFile(os.Getenv(EnvironmentFilepathName))
 	}
 
-	env, ok := environments[toUpperName]
+	name = strings.ToUpper(name)
+	env, ok := environments[name]
 	if !ok {
 		return env, fmt.Errorf("autorest/azure: There is no cloud environment matching the name %q", name)
 	}
@@ -160,20 +165,20 @@ func EnvironmentFromName(name string) (Environment, error) {
 // EnvironmentFromFile loads an Environment from a configuration file available on disk.
 // This function is particularly useful in the Hybrid Cloud model, where one must define their own
 // endpoints.
-func EnvironmentFromFile(location string, name string) (Environment, error) {
-	env := Environment{
-		Name: name,
-	}
+func EnvironmentFromFile(location string) (unmarshaled Environment, err error) {
 
+    log.Infoln(fmt.Sprintf("EnvironmentFromFile: Reading file from location: %s", location))
 	fileContents, err := ioutil.ReadFile(location)
 	if err != nil {
-		return env, fmt.Errorf("autorest/azure: Error in opening the env. jason file %q", err.Error())
+	    log.Infoln(fmt.Errorf("EnvironmentFromFile: Error parsing the enviroment jason file: %q", err.Error()))
+		return
 	}
 
-	err = json.Unmarshal(fileContents, &env)
+	err = json.Unmarshal(fileContents, &unmarshaled)
+	
 	if err != nil {
-		return env, fmt.Errorf("autorest/azure: Error parsing the env. jason file %q", err.Error())
+		log.Infoln(fmt.Errorf("EnvironmentFromFile: Error parsing the enviroment jason file: %q", err.Error()))
 	}
 
-	return env, nil
+	return
 }
