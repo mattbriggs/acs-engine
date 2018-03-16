@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/leonelquinteros/gotext"
@@ -117,6 +118,13 @@ func (dc *deployCmd) validate(cmd *cobra.Command, args []string) error {
 
 	if dc.location == "" {
 		return fmt.Errorf(fmt.Sprintf("--location must be specified"))
+	}
+
+	// For Hybrid cloud we need to write the cloud profile locally.
+	if dc.containerService.Properties.CloudProfile != nil {
+		if strings.EqualFold(dc.containerService.Properties.CloudProfile.Name, "AzureStackCloud") {
+			writeCloudProfile("/etc/kubernetes", "azurestackcloud.json", dc)
+		}
 	}
 
 	dc.client, err = dc.authArgs.getClient()
