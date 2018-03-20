@@ -211,6 +211,11 @@ func autofillApimodel(dc *deployCmd) {
 	if !useManagedIdentity {
 		spp := dc.containerService.Properties.ServicePrincipalProfile
 		if spp != nil && spp.ClientID == "" && spp.Secret == "" && spp.KeyvaultSecretRef == nil {
+			if dc.containerService.Properties.CloudProfile != nil {
+				if strings.EqualFold(dc.containerService.Properties.CloudProfile.Name, "AzureStackCloud") {
+					log.Fatal("AzureStackCloud does not support creating applications using graph endpoint. Please provide a server principal which has access to your access to your subscription.")
+				}
+			}
 			log.Warnln("apimodel: ServicePrincipalProfile was missing or empty, creating application...")
 
 			// TODO: consider caching the creds here so they persist between subsequent runs of 'deploy'

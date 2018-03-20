@@ -4,6 +4,7 @@ import (
     "os"
 	"fmt"
 	"path"
+	"strings"
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -102,6 +103,9 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	var client *armhelpers.AzureClient
 	switch authArgs.AuthMethod {
 	case "device":
+		if strings.EqualFold(authArgs.RawAzureEnvironment, "AzureStackCloud") {
+				log.Fatal("--auth-method is not a valid auth method for AzureStackCloud.")
+		}
 		client, err = armhelpers.NewAzureClientWithDeviceAuth(env, authArgs.SubscriptionID.String())
 	case "client_secret":
 		client, err = armhelpers.NewAzureClientWithClientSecret(env, authArgs.SubscriptionID.String(), authArgs.ClientID.String(), authArgs.ClientSecret)
