@@ -22,6 +22,7 @@ import (
 
 	//log "github.com/sirupsen/logrus"
 	"github.com/Azure/acs-engine/pkg/api"
+	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Azure/acs-engine/pkg/helpers"
 	"github.com/Azure/acs-engine/pkg/i18n"
 	"github.com/Masterminds/semver"
@@ -31,9 +32,11 @@ import (
 const (
 	kubernetesMasterCustomDataYaml           = "k8s/kubernetesmastercustomdata.yml"
 	kubernetesMasterCustomScript             = "k8s/kubernetesmastercustomscript.sh"
+	kubernetesProvisionSourceScript          = "k8s/kubernetesprovisionsource.sh"
 	kubernetesMountetcd                      = "k8s/kubernetes_mountetcd.sh"
 	kubernetesMasterGenerateProxyCertsScript = "k8s/kubernetesmastergenerateproxycertscript.sh"
 	kubernetesAgentCustomDataYaml            = "k8s/kubernetesagentcustomdata.yml"
+	kubernetesJumpboxCustomDataYaml          = "k8s/kubernetesjumpboxcustomdata.yml"
 	kubeConfigJSON                           = "k8s/kubeconfig.json"
 	kubernetesWindowsAgentCustomDataPS1      = "k8s/kuberneteswindowssetup.ps1"
 )
@@ -294,7 +297,7 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 	kubeconfig := string(b)
 	// variable replacement
 	kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"variables('caCertificate')\"}}", base64.StdEncoding.EncodeToString([]byte(properties.CertificateProfile.CaCertificate)), -1)
-	if properties.OrchestratorProfile.KubernetesConfig.EnablePrivateCluster {
+	if properties.OrchestratorProfile.KubernetesConfig.PrivateCluster != nil && helpers.IsTrueBoolPointer(properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.Enabled) {
 		if properties.MasterProfile.Count > 1 {
 			// more than 1 master, use the internal lb IP
 			firstMasterIP := net.ParseIP(properties.MasterProfile.FirstConsecutiveStaticIP).To4()
@@ -664,6 +667,14 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 		addValue(parametersMap, "etcdDownloadURLBase", cloudSpecConfig.KubernetesSpecConfig.EtcdDownloadURLBase)
 		addValue(parametersMap, "etcdVersion", cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdVersion)
 		addValue(parametersMap, "etcdDiskSizeGB", cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdDiskSizeGB)
+		if cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateJumpboxProvision() {
+			addValue(parametersMap, "jumpboxVMName", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.Name)
+			addValue(parametersMap, "jumpboxVMSize", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.VMSize)
+			addValue(parametersMap, "jumpboxUsername", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.Username)
+			addValue(parametersMap, "jumpboxOSDiskSizeGB", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.OSDiskSizeGB)
+			addValue(parametersMap, "jumpboxPublicKey", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.PublicKey)
+			addValue(parametersMap, "jumpboxStorageProfile", cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.StorageProfile)
+		}
 		var totalNodes int
 		if cs.Properties.MasterProfile != nil {
 			totalNodes = cs.Properties.MasterProfile.Count
@@ -716,6 +727,11 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 			}
 			if properties.OrchestratorProfile.DcosConfig.DcosBootstrapURL != "" {
 				dcosBootstrapURL = properties.OrchestratorProfile.DcosConfig.DcosBootstrapURL
+			}
+
+			if len(properties.OrchestratorProfile.DcosConfig.Registry) > 0 {
+				addValue(parametersMap, "registry", properties.OrchestratorProfile.DcosConfig.Registry)
+				addValue(parametersMap, "registryKey", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", properties.OrchestratorProfile.DcosConfig.RegistryUser, properties.OrchestratorProfile.DcosConfig.RegistryPass))))
 			}
 		}
 
@@ -916,6 +932,12 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			}
 			return strings.TrimSuffix(buf.String(), ", ")
 		},
+		"HasPrivateRegistry": func() bool {
+			if cs.Properties.OrchestratorProfile.DcosConfig != nil {
+				return len(cs.Properties.OrchestratorProfile.DcosConfig.Registry) > 0
+			}
+			return false
+		},
 		"RequiresFakeAgentOutput": func() bool {
 			return cs.Properties.OrchestratorProfile.OrchestratorType == api.Kubernetes
 		},
@@ -932,18 +954,32 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return cs.Properties.OrchestratorProfile.IsAzureCNI()
 		},
 		"IsPrivateCluster": func() bool {
-			return cs.Properties.OrchestratorProfile.KubernetesConfig != nil && cs.Properties.OrchestratorProfile.KubernetesConfig.EnablePrivateCluster
+			if !cs.Properties.OrchestratorProfile.IsKubernetes() {
+				return false
+			}
+			return helpers.IsTrueBoolPointer(cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.Enabled)
+		},
+		"ProvisionJumpbox": func() bool {
+			return cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateJumpboxProvision()
+		},
+		"JumpboxIsManagedDisks": func() bool {
+			if cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateJumpboxProvision() && cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.StorageProfile == api.ManagedDisks {
+				return true
+			}
+			return false
+		},
+		"GetKubeConfig": func() string {
+			kubeConfig, err := GenerateKubeConfig(cs.Properties, cs.Location)
+			if err != nil {
+				return ""
+			}
+			return escapeSingleLine(kubeConfig)
 		},
 		"UseManagedIdentity": func() bool {
 			return cs.Properties.OrchestratorProfile.KubernetesConfig.UseManagedIdentity
 		},
 		"UseInstanceMetadata": func() bool {
-			if cs.Properties.OrchestratorProfile.KubernetesConfig.UseInstanceMetadata == nil {
-				return true
-			} else if *cs.Properties.OrchestratorProfile.KubernetesConfig.UseInstanceMetadata {
-				return true
-			}
-			return false
+			return helpers.IsTrueBoolPointer(cs.Properties.OrchestratorProfile.KubernetesConfig.UseInstanceMetadata)
 		},
 		"GetVNETSubnetDependencies": func() string {
 			return getVNETSubnetDependencies(cs.Properties)
@@ -970,7 +1006,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return getDataDisks(profile)
 		},
 		"GetDCOSMasterCustomData": func() string {
-			masterProvisionScript := getDCOSMasterProvisionScript()
+			masterProvisionScript := getDCOSMasterProvisionScript(*cs.Properties.OrchestratorProfile)
 			masterAttributeContents := getDCOSMasterCustomNodeLabels()
 			masterPreprovisionExtension := ""
 			if cs.Properties.MasterProfile.PreprovisionExtension != nil {
@@ -987,7 +1023,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return fmt.Sprintf("\"customData\": \"[base64(concat('#cloud-config\\n\\n', '%s'))]\",", str)
 		},
 		"GetDCOSAgentCustomData": func(profile *api.AgentPoolProfile) string {
-			agentProvisionScript := getDCOSAgentProvisionScript(profile)
+			agentProvisionScript := getDCOSAgentProvisionScript(profile, *cs.Properties.OrchestratorProfile)
 			attributeContents := getDCOSAgentCustomNodeLabels(profile)
 			agentPreprovisionExtension := ""
 			if profile.PreprovisionExtension != nil {
@@ -1119,12 +1155,24 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 
 			return fmt.Sprintf("\"customData\": \"[base64(concat('%s'))]\",", str)
 		},
+		"GetKubernetesJumpboxCustomData": func(p *api.Properties) string {
+			str, err := t.getSingleLineForTemplate(kubernetesJumpboxCustomDataYaml, cs, p)
+
+			if err != nil {
+				return ""
+			}
+
+			return fmt.Sprintf("\"customData\": \"[base64(concat('%s'))]\",", str)
+		},
 		"WriteLinkedTemplatesForExtensions": func() string {
 			extensions := getLinkedTemplatesForExtensions(cs.Properties)
 			return extensions
 		},
 		"GetKubernetesB64Provision": func() string {
 			return getBase64CustomScript(kubernetesMasterCustomScript)
+		},
+		"GetKubernetesB64ProvisionSource": func() string {
+			return getBase64CustomScript(kubernetesProvisionSourceScript)
 		},
 		"GetKubernetesB64Mountetcd": func() string {
 			return getBase64CustomScript(kubernetesMountetcd)
@@ -1584,6 +1632,8 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 					val = cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdVersion
 				case "etcdDiskSizeGB":
 					val = cs.Properties.OrchestratorProfile.KubernetesConfig.EtcdDiskSizeGB
+				case "jumpboxOSDiskSizeGB":
+					val = strconv.Itoa(cs.Properties.OrchestratorProfile.KubernetesConfig.PrivateCluster.JumpboxProfile.OSDiskSizeGB)
 				default:
 					val = ""
 				}
@@ -1602,7 +1652,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"EnableAggregatedAPIs": func() bool {
 			if cs.Properties.OrchestratorProfile.KubernetesConfig.EnableAggregatedAPIs {
 				return true
-			} else if isKubernetesVersionGe(cs.Properties.OrchestratorProfile.OrchestratorVersion, "1.9.0") {
+			} else if common.IsKubernetesVersionGe(cs.Properties.OrchestratorProfile.OrchestratorVersion, "1.9.0") {
 				return true
 			}
 			return false
@@ -1754,7 +1804,7 @@ func isNSeriesSKU(profile *api.AgentPoolProfile) bool {
 func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 
 	// latest version of the drivers. Later this parameter could be bubbled up so that users can choose specific driver versions.
-	dv := "384.111"
+	dv := "390.30"
 	dest := "/usr/local/nvidia"
 
 	/*
@@ -1792,29 +1842,35 @@ func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 - %s/bin/nvidia-smi
 - retrycmd_if_failure 5 10 systemctl restart kubelet`, dv, dest, dest, fmt.Sprintf("%s/lib64", dest), dest)
 
-	// We don't have an agreement in place with NVIDIA to provide the drivers on every sku. For this VMs we simply log a warning message.
-	na := getGPUDriversNotInstalledWarningMessage(profile.VMSize)
-
 	/* If a new GPU sku becomes available, add a key to this map, but only provide an installation script if you have a confirmation
 	   that we have an agreement with NVIDIA for this specific gpu. Otherwise use the warning message.
 	*/
 	dm := map[string]string{
-		"Standard_NC6":      installScript,
-		"Standard_NC12":     installScript,
-		"Standard_NC24":     installScript,
-		"Standard_NC24r":    installScript,
-		"Standard_NV6":      installScript,
-		"Standard_NV12":     installScript,
-		"Standard_NV24":     installScript,
-		"Standard_NV24r":    installScript,
-		"Standard_NC6_v2":   na,
-		"Standard_NC12_v2":  na,
-		"Standard_NC24_v2":  na,
-		"Standard_NC24r_v2": na,
-		"Standard_ND6":      na,
-		"Standard_ND12":     na,
-		"Standard_ND24":     na,
-		"Standard_ND24r":    na,
+		// K80
+		"Standard_NC6":   installScript,
+		"Standard_NC12":  installScript,
+		"Standard_NC24":  installScript,
+		"Standard_NC24r": installScript,
+		// M60
+		"Standard_NV6":   installScript,
+		"Standard_NV12":  installScript,
+		"Standard_NV24":  installScript,
+		"Standard_NV24r": installScript,
+		// P40
+		"Standard_ND6s":   installScript,
+		"Standard_ND12s":  installScript,
+		"Standard_ND24s":  installScript,
+		"Standard_ND24rs": installScript,
+		// P100
+		"Standard_NC6s_v2":   installScript,
+		"Standard_NC12s_v2":  installScript,
+		"Standard_NC24s_v2":  installScript,
+		"Standard_NC24rs_v2": installScript,
+		// V100
+		"Standard_NC6s_v3":   installScript,
+		"Standard_NC12s_v3":  installScript,
+		"Standard_NC24s_v3":  installScript,
+		"Standard_NC24rs_v3": installScript,
 	}
 	if _, ok := dm[profile.VMSize]; ok {
 		return dm[profile.VMSize]
@@ -1822,10 +1878,6 @@ func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 
 	// The VM is not part of the GPU skus, no extra steps.
 	return ""
-}
-
-func getGPUDriversNotInstalledWarningMessage(VMSize string) string {
-	return fmt.Sprintf("echo 'Warning: NVIDIA Drivers for this VM SKU (%v) are not automatically installed'", VMSize)
 }
 
 func getDCOSCustomDataPublicIPStr(orchestratorType string, masterCount int) string {
@@ -2132,7 +2184,7 @@ func getBase64CustomScriptFromStr(str string) string {
 	return base64.StdEncoding.EncodeToString(gzipB.Bytes())
 }
 
-func getDCOSAgentProvisionScript(profile *api.AgentPoolProfile) string {
+func getDCOSAgentProvisionScript(profile *api.AgentPoolProfile, orchProfile api.OrchestratorProfile) string {
 	// add the provision script
 
 	var scriptname string
@@ -2160,13 +2212,20 @@ func getDCOSAgentProvisionScript(profile *api.AgentPoolProfile) string {
 	} else {
 		roleFileContents = "touch /etc/mesosphere/roles/slave"
 	}
-
 	provisionScript = strings.Replace(provisionScript, "ROLESFILECONTENTS", roleFileContents, -1)
 
-	return provisionScript
+	var b bytes.Buffer
+	b.WriteString(provisionScript)
+	b.WriteString("\n")
+
+	if len(orchProfile.DcosConfig.Registry) == 0 {
+		b.WriteString("rm /etc/docker.tar.gz\n")
+	}
+
+	return b.String()
 }
 
-func getDCOSMasterProvisionScript() string {
+func getDCOSMasterProvisionScript(orchProfile api.OrchestratorProfile) string {
 	// add the provision script
 	bp, err1 := Asset(dcosProvision)
 	if err1 != nil {
@@ -2182,8 +2241,12 @@ func getDCOSMasterProvisionScript() string {
 	roleFileContents := `touch /etc/mesosphere/roles/master
 touch /etc/mesosphere/roles/azure_master`
 	provisionScript = strings.Replace(provisionScript, "ROLESFILECONTENTS", roleFileContents, -1)
+	var b bytes.Buffer
+	b.WriteString(provisionScript)
+	b.WriteString("\n")
 
-	return provisionScript
+	return b.String()
+
 }
 
 // getSingleLineForTemplate returns the file as a single line for embedding in an arm template
@@ -2207,7 +2270,7 @@ func getSingleLineDCOSCustomData(orchestratorType, orchestratorVersion string,
 
 	b, err := Asset(yamlFilename)
 	if err != nil {
-		panic(fmt.Sprintf("BUG: %s", err.Error()))
+		panic(fmt.Sprintf("BUG getting yaml custom data file: %s", err.Error()))
 	}
 
 	// transform the provision script content
@@ -2339,7 +2402,7 @@ func getLinkedTemplatesForExtensions(properties *api.Properties) string {
 			result += ","
 			dta, e := getMasterLinkedTemplateText(properties.MasterProfile, orchestratorType, extensionProfile, singleOrAll)
 			if e != nil {
-				fmt.Printf(e.Error())
+				fmt.Println(e.Error())
 				return ""
 			}
 			result += dta
@@ -2352,7 +2415,7 @@ func getLinkedTemplatesForExtensions(properties *api.Properties) string {
 				result += ","
 				dta, e := getAgentPoolLinkedTemplateText(agentPoolProfile, orchestratorType, extensionProfile, singleOrAll)
 				if e != nil {
-					fmt.Printf(e.Error())
+					fmt.Println(e.Error())
 					return ""
 				}
 				result += dta
@@ -2440,7 +2503,7 @@ func validateProfileOptedForExtension(extensionName string, profileExtensions []
 // to pass a root extensions url for testing
 func getLinkedTemplateTextForURL(rootURL, orchestrator, extensionName, version, query string) (string, error) {
 	supportsExtension, err := orchestratorSupportsExtension(rootURL, orchestrator, extensionName, version, query)
-	if supportsExtension == false {
+	if !supportsExtension {
 		return "", fmt.Errorf("Extension not supported for orchestrator. Error: %s", err)
 	}
 
@@ -2464,7 +2527,7 @@ func orchestratorSupportsExtension(rootURL, orchestrator, extensionName, version
 		return false, fmt.Errorf("Unable to parse supported-orchestrators.json for Extension %s Version %s", extensionName, version)
 	}
 
-	if stringInSlice(orchestrator, supportedOrchestrators) != true {
+	if !stringInSlice(orchestrator, supportedOrchestrators) {
 		return false, fmt.Errorf("Orchestrator: %s not in list of supported orchestrators for Extension: %s Version %s", orchestrator, extensionName, version)
 	}
 

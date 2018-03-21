@@ -569,7 +569,8 @@ func convertVLabsOrchestratorProfile(vp *vlabs.Properties, api *OrchestratorProf
 		api.OrchestratorVersion = common.RationalizeReleaseAndVersion(
 			vlabscs.OrchestratorType,
 			vlabscs.OrchestratorRelease,
-			vlabscs.OrchestratorVersion)
+			vlabscs.OrchestratorVersion,
+			vp.HasWindows())
 	case DCOS:
 		if vlabscs.DcosConfig != nil {
 			api.DcosConfig = &DcosConfig{}
@@ -578,13 +579,26 @@ func convertVLabsOrchestratorProfile(vp *vlabs.Properties, api *OrchestratorProf
 		api.OrchestratorVersion = common.RationalizeReleaseAndVersion(
 			vlabscs.OrchestratorType,
 			vlabscs.OrchestratorRelease,
-			vlabscs.OrchestratorVersion)
+			vlabscs.OrchestratorVersion,
+			false)
 	}
 }
 
 func convertVLabsDcosConfig(vlabs *vlabs.DcosConfig, api *DcosConfig) {
 	api.DcosBootstrapURL = vlabs.DcosBootstrapURL
 	api.DcosWindowsBootstrapURL = vlabs.DcosWindowsBootstrapURL
+
+	if len(vlabs.Registry) > 0 {
+		api.Registry = vlabs.Registry
+	}
+
+	if len(vlabs.RegistryUser) > 0 {
+		api.RegistryUser = vlabs.RegistryUser
+	}
+
+	if len(vlabs.RegistryPass) > 0 {
+		api.RegistryPass = vlabs.RegistryPass
+	}
 }
 
 func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *KubernetesConfig) {
@@ -613,7 +627,6 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	api.EnableRbac = vlabs.EnableRbac
 	api.EnableSecureKubelet = vlabs.EnableSecureKubelet
 	api.EnableAggregatedAPIs = vlabs.EnableAggregatedAPIs
-	api.EnablePrivateCluster = vlabs.EnablePrivateCluster
 	api.EnableDataEncryptionAtRest = vlabs.EnableDataEncryptionAtRest
 	api.EnablePodSecurityPolicy = vlabs.EnablePodSecurityPolicy
 	api.GCHighThreshold = vlabs.GCHighThreshold
@@ -625,6 +638,7 @@ func convertVLabsKubernetesConfig(vlabs *vlabs.KubernetesConfig, api *Kubernetes
 	convertControllerManagerConfigToAPI(vlabs, api)
 	convertCloudControllerManagerConfigToAPI(vlabs, api)
 	convertAPIServerConfigToAPI(vlabs, api)
+	convertPrivateClusterToAPI(vlabs, api)
 }
 
 func setVlabsKubernetesDefaults(vp *vlabs.Properties, api *OrchestratorProfile) {
@@ -693,6 +707,26 @@ func convertAPIServerConfigToAPI(v *vlabs.KubernetesConfig, a *KubernetesConfig)
 	for key, val := range v.APIServerConfig {
 		a.APIServerConfig[key] = val
 	}
+}
+
+func convertPrivateClusterToAPI(v *vlabs.KubernetesConfig, a *KubernetesConfig) {
+	if v.PrivateCluster != nil {
+		a.PrivateCluster = &PrivateCluster{}
+		a.PrivateCluster.Enabled = v.PrivateCluster.Enabled
+		if v.PrivateCluster.JumpboxProfile != nil {
+			a.PrivateCluster.JumpboxProfile = &PrivateJumpboxProfile{}
+			convertPrivateJumpboxProfileToAPI(v.PrivateCluster.JumpboxProfile, a.PrivateCluster.JumpboxProfile)
+		}
+	}
+}
+
+func convertPrivateJumpboxProfileToAPI(v *vlabs.PrivateJumpboxProfile, a *PrivateJumpboxProfile) {
+	a.Name = v.Name
+	a.OSDiskSizeGB = v.OSDiskSizeGB
+	a.VMSize = v.VMSize
+	a.PublicKey = v.PublicKey
+	a.Username = v.Username
+	a.StorageProfile = v.StorageProfile
 }
 
 func convertV20160930MasterProfile(v20160930 *v20160930.MasterProfile, api *MasterProfile) {
@@ -855,6 +889,7 @@ func convertVLabsAgentPoolProfile(vlabs *vlabs.AgentPoolProfile, api *AgentPoolP
 	api.Subnet = vlabs.GetSubnet()
 	api.IPAddressCount = vlabs.IPAddressCount
 	api.FQDN = vlabs.FQDN
+
 	api.CustomNodeLabels = map[string]string{}
 	for k, v := range vlabs.CustomNodeLabels {
 		api.CustomNodeLabels[k] = v

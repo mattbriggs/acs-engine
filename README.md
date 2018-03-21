@@ -26,7 +26,7 @@ The cluster definition file enables the following customizations to your Docker 
 * [Swarm Mode Walkthrough](docs/swarmmode.md) - shows how to create a Swarm Mode cluster on Azure
 * [Custom VNET](examples/vnet) - shows how to use a custom VNET
 * [Attached Disks](examples/disks-storageaccount) - shows how to attach up to 4 disks per node
-* [Managed Disks](examples/disks-managed) (under private preview) - shows how to use managed disks
+* [Managed Disks](examples/disks-managed) - shows how to use managed disks
 * [Large Clusters](examples/largeclusters) - shows how to create cluster sizes of up to 1200 nodes
 
 ## Contributing
@@ -47,12 +47,12 @@ Please follow these instructions before submitting a PR:
 Usage is best demonstrated with an example:
 
 ```shell
-$ vim examples/kubernetes.classic.json
+$ vim examples/classic/kubernetes.classic.json
 
 # insert your preferred, unique DNS prefix
 # insert your SSH public key
 
-$ ./acs-engine generate examples/kubernetes.classic.json
+$ ./acs-engine generate examples/classic/kubernetes.classic.json
 ```
 
 This produces a new directory inside `_output/` that contains an ARM template
