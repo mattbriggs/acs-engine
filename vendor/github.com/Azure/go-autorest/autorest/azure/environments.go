@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	log "github.com/sirupsen/logrus"
 )
 
 // EnvironmentFilepathName captures the name of the environment variable containing the path to the file

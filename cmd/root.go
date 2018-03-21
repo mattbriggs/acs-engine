@@ -127,7 +127,6 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 }
 
 func writeCloudProfile(dir string, file string, dc *deployCmd) error {
-	
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if e := os.MkdirAll(dir, 0700); e != nil {
 			fmt.Printf("Error [MkdirAll %s] : %v\n", dir, e)
@@ -153,7 +152,6 @@ func writeCloudProfile(dir string, file string, dc *deployCmd) error {
 	"serviceManagementEndpoint": "`+dc.containerService.Properties.CloudProfile.ServiceManagementEndpoint+`",
 	"resourceManagerEndpoint": "`+dc.containerService.Properties.CloudProfile.ResourceManagerEndpoint+`",
 	"activeDirectoryEndpoint": "`+dc.containerService.Properties.CloudProfile.ActiveDirectoryEndpoint+`",
-	"serviceManagementEndpoint": "`+dc.containerService.Properties.CloudProfile.ServiceManagementEndpoint+`",
 	"galleryEndpoint": "`+dc.containerService.Properties.CloudProfile.GalleryEndpoint+`",
 	"keyVaultEndpoint": "`+dc.containerService.Properties.CloudProfile.KeyVaultEndpoint+`",
 	"graphEndpoint": "`+dc.containerService.Properties.CloudProfile.GraphEndpoint+`",
