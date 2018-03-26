@@ -20,6 +20,9 @@ spec:
           mountPath: "/var/lib/kubelet"
         - name: "msi"
           mountPath: "/var/lib/waagent/ManagedIdentity-Settings"
+          readOnly: true   
+        - name: "ssl"
+          mountPath: "/etc/ssl/certs"
           readOnly: true
         - name: "sock"
           mountPath: "/opt"
@@ -36,3 +39,6 @@ spec:
     - name: "sock"
       hostPath:
         path: "/opt"
+    - name: ssl
+      hostPath:
+        path: "/etc/ssl/certs"

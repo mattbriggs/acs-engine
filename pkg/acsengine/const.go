@@ -274,4 +274,5 @@ const (
 	azureChinaCloud        = "AzureChinaCloud"
 	azureGermanCloud       = "AzureGermanCloud"
 	azureUSGovernmentCloud = "AzureUSGovernmentCloud"
+	azureStackCloud        = "AzureStackCloud"
 )

@@ -66,8 +66,10 @@
           {{end}}
         ]
 {{if not IsAzureCNI}}
-        ,
-        "enableIPForwarding": true
+    {{if not IsAzureStackCloud}}
+		,
+		"enableIPForwarding": true
+	{{end}}
 {{end}}
       },
       "type": "Microsoft.Network/networkInterfaces"

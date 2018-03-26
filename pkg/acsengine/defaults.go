@@ -15,6 +15,7 @@ import (
 	"github.com/Azure/acs-engine/pkg/helpers"
 	"github.com/Azure/acs-engine/pkg/openshift/certgen"
 	"github.com/Masterminds/semver"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -202,6 +203,29 @@ var (
 			},
 			api.RHEL:   DefaultRHELOSImageConfig,
 			api.CoreOS: DefaultCoreOSImageConfig,
+		},
+	}
+
+	//AzureStackCloudSpec is the default configurations for global azure.
+	AzureStackCloudSpec = AzureEnvironmentSpecConfig{
+		//DockerSpecConfig specify the docker engine download repo
+		DockerSpecConfig: DefaultDockerSpecConfig,
+		//KubernetesSpecConfig is the default kubernetes container image url.
+		KubernetesSpecConfig: DefaultKubernetesSpecConfig,
+		DCOSSpecConfig:       DefaultDCOSSpecConfig,
+
+		EndpointConfig: AzureEndpointConfig{
+			ResourceManagerVMDNSSuffix: "cloudapp.azurestack.external",
+		},
+
+		OSImageConfig: map[api.Distro]AzureOSImageConfig{
+			api.Ubuntu: {
+				ImageOffer:     "UbuntuServer",
+				ImageSku:       "16.04-LTS",
+				ImagePublisher: "Canonical",
+				ImageVersion:   "16.04.201802220",
+			},
+			api.RHEL: DefaultRHELOSImageConfig,
 		},
 	}
 
@@ -1058,4 +1082,15 @@ func generateEtcdEncryptionKey() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+func getCloudProfileName(properties *api.Properties) string {
+	var cloudProfileName string = ""
+	if properties.CloudProfile != nil {
+		cloudProfileName = properties.CloudProfile.Name
+		if cloudProfileName == "" {
+			log.Fatalf("CloudProfile is present but no name associated with it.")
+		}
+	}
+	return cloudProfileName
 }
