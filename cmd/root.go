@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -91,7 +94,7 @@ func (authArgs *authArgs) validateAuthArgs() error {
 	if authArgs.SubscriptionID.String() == "00000000-0000-0000-0000-000000000000" {
 		return fmt.Errorf("--subscription-id is required (and must be a valid UUID)")
 	}
-
+	log.Infoln(fmt.Sprintf("AzureEnvironment: %s", authArgs.RawAzureEnvironment))
 	_, err := azure.EnvironmentFromName(authArgs.RawAzureEnvironment)
 	if err != nil {
 		return fmt.Errorf("failed to parse --azure-env as a valid target Azure cloud environment")
@@ -107,6 +110,9 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	}
 	switch authArgs.AuthMethod {
 	case "device":
+		if strings.EqualFold(authArgs.RawAzureEnvironment, "AzureStackCloud") {
+			log.Fatal("--auth-method is not a valid auth method for AzureStackCloud.")
+		}
 		client, err = armhelpers.NewAzureClientWithDeviceAuth(env, authArgs.SubscriptionID.String())
 	case "client_secret":
 		client, err = armhelpers.NewAzureClientWithClientSecret(env, authArgs.SubscriptionID.String(), authArgs.ClientID.String(), authArgs.ClientSecret)
@@ -124,4 +130,52 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	}
 	client.AddAcceptLanguages([]string{authArgs.language})
 	return client, nil
+}
+
+func writeCloudProfile(dir string, file string, dc *deployCmd) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if e := os.MkdirAll(dir, 0700); e != nil {
+			fmt.Printf("Error [MkdirAll %s] : %v\n", dir, e)
+			return e
+		}
+	}
+
+	path := path.Join(dir, file)
+	log.Infoln(fmt.Sprintf("Writing cloud profile to: %s", path))
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("Error [OpenFile %s] : %v\n", file, err)
+		return err
+	}
+	defer f.Close()
+
+	// Build content for the file
+	content := `{
+    "name": "` + dc.containerService.Properties.CloudProfile.Name + `",
+	"managementPortalURL": "` + dc.containerService.Properties.CloudProfile.ManagementPortalURL + `",
+	"publishSettingsURL": "` + dc.containerService.Properties.CloudProfile.PublishSettingsURL + `",
+	"serviceManagementEndpoint": "` + dc.containerService.Properties.CloudProfile.ServiceManagementEndpoint + `",
+	"resourceManagerEndpoint": "` + dc.containerService.Properties.CloudProfile.ResourceManagerEndpoint + `",
+	"activeDirectoryEndpoint": "` + dc.containerService.Properties.CloudProfile.ActiveDirectoryEndpoint + `",
+	"galleryEndpoint": "` + dc.containerService.Properties.CloudProfile.GalleryEndpoint + `",
+	"keyVaultEndpoint": "` + dc.containerService.Properties.CloudProfile.KeyVaultEndpoint + `",
+	"graphEndpoint": "` + dc.containerService.Properties.CloudProfile.GraphEndpoint + `",
+	"storageEndpointSuffix": "` + dc.containerService.Properties.CloudProfile.StorageEndpointSuffix + `",
+	"sQLDatabaseDNSSuffix": "` + dc.containerService.Properties.CloudProfile.SQLDatabaseDNSSuffix + `",
+	"trafficManagerDNSSuffix": "` + dc.containerService.Properties.CloudProfile.TrafficManagerDNSSuffix + `",
+	"keyVaultDNSSuffix": "` + dc.containerService.Properties.CloudProfile.KeyVaultDNSSuffix + `",
+	"serviceBusEndpointSuffix": "` + dc.containerService.Properties.CloudProfile.ServiceBusEndpointSuffix + `",
+	"serviceManagementVMDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ServiceManagementVMDNSSuffix + `",
+	"resourceManagerVMDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ResourceManagerVMDNSSuffix + `",
+	"containerRegistryDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ContainerRegistryDNSSuffix + `"
+    }`
+
+	if _, err = f.Write([]byte(content)); err != nil {
+		fmt.Printf("Error [Write %s] : %v\n", file, err)
+	}
+
+	os.Setenv("AZURE_ENVIRONMENT_FILEPATH", path)
+
+	return nil
 }
