@@ -59,13 +59,15 @@ func setAPIServerConfig(cs *api.ContainerService) {
 		staticLinuxAPIServerConfig["--cloud-config"] = "/etc/kubernetes/azure.json"
 	}
 
+	var cloudProfileName string = getCloudProfileName(cs.Properties)
+	
 	// AAD configuration
 	if cs.Properties.HasAadProfile() {
 		staticLinuxAPIServerConfig["--oidc-username-claim"] = "oid"
 		staticLinuxAPIServerConfig["--oidc-groups-claim"] = "groups"
 		staticLinuxAPIServerConfig["--oidc-client-id"] = "spn:" + cs.Properties.AADProfile.ServerAppID
 		issuerHost := "sts.windows.net"
-		if GetCloudTargetEnv(cs.Location) == "AzureChinaCloud" {
+		if GetCloudTargetEnv(cs.Location, cloudProfileName) == "AzureChinaCloud" {
 			issuerHost = "sts.chinacloudapi.cn"
 		}
 		staticLinuxAPIServerConfig["--oidc-issuer-url"] = "https://" + issuerHost + "/" + cs.Properties.AADProfile.TenantID + "/"

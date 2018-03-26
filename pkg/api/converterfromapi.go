@@ -436,6 +436,10 @@ func convertPropertiesToVLabs(api *Properties, vlabsProps *vlabs.Properties) {
 		vlabsProps.OrchestratorProfile = &vlabs.OrchestratorProfile{}
 		convertOrchestratorProfileToVLabs(api.OrchestratorProfile, vlabsProps.OrchestratorProfile)
 	}
+	if api.CloudProfile != nil {  
+		vlabsProps.CloudProfile = &vlabs.CloudProfile{}  
+		convertCloudProfileToVLabs(api.CloudProfile, vlabsProps.CloudProfile)  
+	}
 	if api.MasterProfile != nil {
 		vlabsProps.MasterProfile = &vlabs.MasterProfile{}
 		convertMasterProfileToVLabs(api.MasterProfile, vlabsProps.MasterProfile)
@@ -641,6 +645,28 @@ func convertOrchestratorProfileToVLabs(api *OrchestratorProfile, o *vlabs.Orches
 func convertDcosConfigToVLabs(api *DcosConfig, vlabs *vlabs.DcosConfig) {
 	vlabs.DcosBootstrapURL = api.DcosBootstrapURL
 	vlabs.DcosWindowsBootstrapURL = api.DcosWindowsBootstrapURL
+}
+
+func convertCloudProfileToVLabs(api *CloudProfile, vlabs *vlabs.CloudProfile) {
+	vlabs.Name = api.Name
+	vlabs.ManagementPortalURL = api.ManagementPortalURL
+	vlabs.PublishSettingsURL = api.PublishSettingsURL
+	vlabs.ServiceManagementEndpoint = api.ServiceManagementEndpoint
+	vlabs.ResourceManagerEndpoint = api.ResourceManagerEndpoint
+	vlabs.ActiveDirectoryEndpoint = api.ActiveDirectoryEndpoint
+	vlabs.GalleryEndpoint = api.GalleryEndpoint
+	vlabs.KeyVaultEndpoint = api.KeyVaultEndpoint
+	vlabs.GraphEndpoint = api.GraphEndpoint
+	vlabs.StorageEndpointSuffix = api.StorageEndpointSuffix
+	vlabs.SQLDatabaseDNSSuffix = api.SQLDatabaseDNSSuffix
+	vlabs.TrafficManagerDNSSuffix = api.TrafficManagerDNSSuffix
+	vlabs.KeyVaultDNSSuffix = api.KeyVaultDNSSuffix
+	vlabs.ServiceBusEndpointSuffix = api.ServiceBusEndpointSuffix
+	vlabs.ServiceManagementVMDNSSuffix = api.ServiceManagementVMDNSSuffix
+	vlabs.ResourceManagerVMDNSSuffix = api.ResourceManagerVMDNSSuffix
+	vlabs.ContainerRegistryDNSSuffix = api.ContainerRegistryDNSSuffix
+	vlabs.ResourceManagerRootCertificate = api.ResourceManagerRootCertificate
+	vlabs.Location = api.Location
 }
 
 func convertKubernetesConfigToVLabs(api *KubernetesConfig, vlabs *vlabs.KubernetesConfig) {
