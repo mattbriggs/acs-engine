@@ -153,12 +153,10 @@ func FormatAzureProdFQDN(fqdnPrefix string, location string, properties *api.Pro
 		FQDNFormat = AzureUSGovernmentCloud.EndpointConfig.ResourceManagerVMDNSSuffix
 	case azureStackCloud:
 		var cloudprofileResourceManagerVMDNSSuffix = properties.CloudProfile.ResourceManagerVMDNSSuffix
-		if cloudprofileResourceManagerVMDNSSuffix != "" {
-			// Assigning the value specified in cloud profile.
-			FQDNFormat = cloudprofileResourceManagerVMDNSSuffix
+		if cloudprofileResourceManagerVMDNSSuffix == "" {
+			log.Fatalf("CloudProfile type %s has empty resourceManagerVMDNSSuffix specified '%s'", cloudProfileName, cloudprofileResourceManagerVMDNSSuffix)
 		} else {
-			// Assigning from default values.
-			FQDNFormat = AzureStackCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
+			FQDNFormat = cloudprofileResourceManagerVMDNSSuffix
 		}
 	default:
 		FQDNFormat = AzureCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix
