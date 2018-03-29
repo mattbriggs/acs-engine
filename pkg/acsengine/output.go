@@ -6,7 +6,8 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-
+	"strings"
+	
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/i18n"
 )
@@ -53,10 +54,7 @@ func (w *ArtifactWriter) WriteTLSArtifacts(containerService *api.ContainerServic
 		return e
 	}
 
-	if !certsGenerated {
-		return nil
-	}
-
+	if certsGenerated {
 	properties := containerService.Properties
 	if properties.OrchestratorProfile.IsKubernetes() {
 		directory := path.Join(artifactsDir, "kubeconfig")
@@ -65,6 +63,14 @@ func (w *ArtifactWriter) WriteTLSArtifacts(containerService *api.ContainerServic
 			locations = []string{containerService.Location}
 		} else {
 			locations = AzureLocations
+			// We need an additional customer provided location for hybrid cloud solution (AzureStack).
+			var cloudProfileName string = getCloudProfileName(properties)
+			if cloudProfileName != "" && strings.EqualFold(cloudProfileName, azureStackCloud) {
+				if properties.CloudProfile.Location == "" {
+					log.Fatalf("CloudProfile type %s has empty location specified '%s'", cloudProfileName, properties.CloudProfile.Location)
+				}
+				locations = append(locations, properties.CloudProfile.Location)
+			}
 		}
 
 		for _, location := range locations {
