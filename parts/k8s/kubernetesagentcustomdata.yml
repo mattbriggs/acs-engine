@@ -16,6 +16,33 @@ write_files:
     [Service]
     MountFlags=shared
 {{end}}
+{{if IsAzureStackCloud}}
+- path: "/etc/kubernetes/azurestackcloud.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    {
+      "name": "{{WrapAsVariable "cloudprofileName"}}",
+      "managementPortalURL": "{{WrapAsVariable "cloudprofileManagementPortalURL"}}",
+      "publishSettingsURL": "{{WrapAsVariable "cloudprofilePublishSettingsURL"}}",
+      "serviceManagementEndpoint": "{{WrapAsVariable "cloudprofileServiceManagementEndpoint"}}",
+      "resourceManagerEndpoint": "{{WrapAsVariable "cloudprofileResourceManagerEndpoint"}}",
+      "activeDirectoryEndpoint": "{{WrapAsVariable "cloudprofileActiveDirectoryEndpoint"}}",
+      "galleryEndpoint": "{{WrapAsVariable "cloudprofileGalleryEndpoint"}}",
+      "keyVaultEndpoint": "{{WrapAsVariable "cloudprofileKeyVaultEndpoint"}}",
+      "graphEndpoint": "{{WrapAsVariable "cloudprofileGraphEndpoint"}}",
+      "storageEndpointSuffix": "{{WrapAsVariable "cloudprofileStorageEndpointSuffix"}}",
+      "sQLDatabaseDNSSuffix": "{{WrapAsVariable "cloudprofileSQLDatabaseDNSSuffix"}}",
+      "trafficManagerDNSSuffix": "{{WrapAsVariable "cloudprofileTrafficManagerDNSSuffix"}}",
+      "keyVaultDNSSuffix": "{{WrapAsVariable "cloudprofileKeyVaultDNSSuffix"}}",
+      "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
+      "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
+      "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
+      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}",
+      "location": "{{WrapAsVariable "cloudprofileLocation"}}"
+    }
+{{end}}
+
 - path: "/etc/systemd/system/docker.service.d/exec_start.conf"
   permissions: "0644"
   owner: "root"
@@ -122,6 +149,22 @@ write_files:
     KUBELET_NODE_LABELS={{GetAgentKubernetesLabels . "',variables('labelResourceGroup'),'"}}
 
 AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
+
+{{if IsAzureStackCloud}}
+- path: "/etc/default/kubelet_env_variable"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    APIVERSION_ARM_COMPUTE=2016-03-30
+    APIVERSION_ARM_COMPUTE_CONTAINERSERVICE=2016-03-30
+    APIVERSION_ARM_CONTAINERREGISTRY=2017-10-01
+    APIVERSION_ARM_DISK=2016-04-30-preview
+    APIVERSION_ARM_NETWORK=2015-06-15
+    APIVERSION_ARM_NETWORK_SCALESET=2015-06-15
+    APIVERSION_ARM_STORAGE=2016-01-01
+    APIVERSION_STORAGE=2016-05-31
+    AZURE_ENVIRONMENT_FILEPATH=/etc/kubernetes/azurestackcloud.json
+{{end}}
 
 - path: "/opt/azure/containers/kubelet.sh"
   permissions: "0755"

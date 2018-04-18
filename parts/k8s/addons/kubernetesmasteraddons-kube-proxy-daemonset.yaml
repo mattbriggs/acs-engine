@@ -27,6 +27,25 @@ spec:
         - "--cluster-cidr=<kubeClusterCidr>"
         - "--feature-gates=ExperimentalCriticalPodAnnotation=true"
         image: "<kubernetesHyperkubeSpec>"
+        env:
+        - name: APIVERSION_ARM_COMPUTE
+          value: "2016-03-30"
+        - name: APIVERSION_ARM_COMPUTE_CONTAINERSERVICE
+          value: "2016-03-30"
+        - name: APIVERSION_ARM_CONTAINERREGISTRY
+          value: "2017-10-01"
+        - name: APIVERSION_ARM_DISK
+          value: "2016-04-30-preview"
+        - name: APIVERSION_ARM_NETWORK
+          value: "2015-06-15"
+        - name: APIVERSION_ARM_NETWORK_SCALESET
+          value: "2015-06-15"
+        - name: APIVERSION_ARM_STORAGE
+          value: "2016-01-01"
+        - name: APIVERSION_STORAGE
+          value: "2016-05-31"
+        - name: AZURE_ENVIRONMENT_FILEPATH
+          value: "/etc/kubernetes/azurestackcloud.json"          
         name: kube-proxy
         resources:
           requests:
@@ -46,7 +65,7 @@ spec:
       hostNetwork: true
       volumes:
       - hostPath:
-          path: "/usr/share/ca-certificates"
+          path: "/etc/ssl/certs"
         name: ssl-certs-host
       - hostPath:
           path: "/var/lib/kubelet/kubeconfig"

@@ -11,6 +11,25 @@ spec:
   containers:
     - name: "kube-apiserver"
       image: "<kubernetesHyperkubeSpec>"
+      env:
+        - name: APIVERSION_ARM_COMPUTE
+          value: "2016-03-30"
+        - name: APIVERSION_ARM_COMPUTE_CONTAINERSERVICE
+          value: "2016-03-30"
+        - name: APIVERSION_ARM_CONTAINERREGISTRY
+          value: "2017-10-01"
+        - name: APIVERSION_ARM_DISK
+          value: "2016-04-30-preview"
+        - name: APIVERSION_ARM_NETWORK
+          value: "2015-06-15"
+        - name: APIVERSION_ARM_NETWORK_SCALESET
+          value: "2015-06-15"
+        - name: APIVERSION_ARM_STORAGE
+          value: "2016-01-01"
+        - name: APIVERSION_STORAGE
+          value: "2016-05-31"
+        - name: AZURE_ENVIRONMENT_FILEPATH
+          value: "/etc/kubernetes/azurestackcloud.json"          
       command: ["/hyperkube", "apiserver"]
       args: [<kubernetesAPIServerConfig>]
       volumeMounts:
@@ -20,6 +39,9 @@ spec:
           mountPath: "/var/lib/kubelet"
         - name: "msi"
           mountPath: "/var/lib/waagent/ManagedIdentity-Settings"
+          readOnly: true   
+        - name: "ssl"
+          mountPath: "/etc/ssl/certs"
           readOnly: true
   volumes:
     - name: "etc-kubernetes"
@@ -31,3 +53,6 @@ spec:
     - name: msi
       hostPath:
         path: "/var/lib/waagent/ManagedIdentity-Settings"
+    - name: ssl
+      hostPath:
+        path: "/etc/ssl/certs"

@@ -1,0 +1,69 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.9",
+      "kubernetesConfig": {
+        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:20180406.1.1.9.6",
+        "networkPolicy": "none"
+      }
+
+    },
+       "cloudProfile": {
+              "name": "AzureStackCloud",
+        "managementPortalURL": "",
+        "publishSettingsURL": "",
+        "serviceManagementEndpoint": "https://management.azurestackci11.onmicrosoft.com/8d887891-6596-46c4-bdb6-1fbde1edbc7e",
+        "resourceManagerEndpoint": "https://management.local.azurestack.external",
+        "activeDirectoryEndpoint": "https://login.windows.net/",
+        "galleryEndpoint": "https://portal.local.azurestack.external:30015/",
+        "keyVaultEndpoint": "https://vault.local.azurestack.external",
+        "graphEndpoint": "https://graph.windows.net/",
+        "storageEndpointSuffix": "local.azurestack.external",
+        "sqlDatabaseDNSSuffix": "",
+        "trafficManagerDNSSuffix": "",
+        "keyVaultDNSSuffix": "vault.local.azurestack.external",
+        "serviceBusEndpointSuffix": "",
+        "serviceManagementVMDNSSuffix": "cloudapp.net",
+        "resourceManagerVMDNSSuffix": "cloudapp.azurestack.external",
+        "containerRegistryDNSSuffix": "",
+        "resourceManagerRootCertificate": "D17697CC206ED26E1A51F5BB96E9356D6D610B74",
+        "location": "local"
+          },
+    "masterProfile": {
+      "count": 1,
+      "dnsPrefix": "k192",
+      "vmSize": "Standard_D2_v2",
+      "StorageProfile" : "StorageAccount"
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "windowspool2",
+        "count": 1,
+        "vmSize": "Standard_D2_v2",
+        "availabilityProfile": "AvailabilitySet",
+        "osType": "Windows",
+        "StorageProfile" : "StorageAccount"
+      }
+    ],
+    "windowsProfile": {
+      "adminUsername": "azureuser",
+      "adminPassword": "!!123abc"
+    },
+    "linuxProfile": {
+      "adminUsername": "azureuser",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDu3X4RAOuZ21nZeGazygwN9atjz4FDe1fAu1imC7Jmn61rmU2QZ7q4VXEfET868ftcw9E34kRj/VHsqZ4Dr55/nIE1fZUUShE33GpyRmpLGQvGpB4Kb0UC728J8JYJ++RsLN92ogMj60hWwsINvMlSsDy4lMiVL44qf23g7RUhEHf0pPKK1rsWPNFZEQsam/J6n868zCgNUeTCw0kT8LUTmiggM0Qz2QIj+/SlGvB6j1xCtzVL8JXxowl8z0nK/wQ+Cb68UIBx0DfKAq7bZmL593Jpe2wSdu2losIOXZiunVmCz9gJILGbIl7XVBEnUtqy6LtCnSazRjoTR+0yuaqR"
+          }
+        ]
+      }
+    },
+    "servicePrincipalProfile": {
+      "clientId": "a7a77abf-ad26-4bb8-9abd-329d03d14804",
+      "secret": "7iiAzT+66U3zazrlnZjNwAVqf7tFscThEVOx1TrGunc="
+    }
+  }
+}
