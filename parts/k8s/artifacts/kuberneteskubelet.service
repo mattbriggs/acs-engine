@@ -38,7 +38,7 @@ ExecStart=/usr/bin/docker run \
   --volume=/etc/ssl/certs:/etc/ssl/certs \
   --volume=/var/lib/waagent/ManagedIdentity-Settings:/var/lib/waagent/ManagedIdentity-Settings:ro \
   --volume=/etc/kubernetes/volumeplugins:/etc/kubernetes/volumeplugins:rw \
-    ${KUBELET_IMAGE} \
+   ${KUBELET_Env_File_Setting}  ${KUBELET_IMAGE} \
       /hyperkube kubelet \
         --containerized \
         --enable-server \

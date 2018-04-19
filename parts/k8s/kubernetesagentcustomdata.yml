@@ -148,6 +148,10 @@ write_files:
     KUBELET_REGISTER_SCHEDULABLE=true
     KUBELET_NODE_LABELS={{GetAgentKubernetesLabels . "',variables('labelResourceGroup'),'"}}
 
+{{if IsAzureStackCloud}}
+KUBELET_Env_File_Setting = "--env-file=/etc/default/kubelet_env_variable"
+{{end}}
+
 AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
 
 {{if IsAzureStackCloud}}
