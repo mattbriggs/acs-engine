@@ -336,6 +336,8 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
         sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Value>|value: \"2015-06-15\"|g" "$file"
         sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Tag>|- name: APIVERSION_ARM_STORAGE|g" "$file"
         sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Value>|value: \"2015-06-15\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Tag>|- name: APIVERSION_STORAGE|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Value>|value: \"2016-05-31\"|g" "$file"
         sed -i "s|<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Tag>|- name: AZURE_ENVIRONMENT_FILEPATH|g" "$file"
         sed -i "s|<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>|value: \"/etc/kubernetes/azurestackcloud.json\"|g" "$file"
     done
@@ -358,6 +360,8 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
         sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Value>/d" "$file"
         sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Tag>/d" "$file"
         sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Value>/d" "$file"
         sed -i "/<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Tag>/d" "$file"
         sed -i "/<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>/d" "$file"
     done 
