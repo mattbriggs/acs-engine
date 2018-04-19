@@ -22,7 +22,6 @@ ExecStart=/usr/bin/docker run \
   --pid=host \
   --privileged \
   --rm \
-  --env-file=/etc/default/kubelet_env_variable \
   --volume=/:/rootfs:ro,shared \
   --volume=/dev:/dev \
   --volume=/sys:/sys:ro \

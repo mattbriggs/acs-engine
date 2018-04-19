@@ -317,7 +317,7 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
 {{if not EnablePodSecurityPolicy}}
     sed -i "s|apparmor_parser|d|g" "/etc/systemd/system/kubelet.service"
 {{end}}
-    declare -a envudpatefilelist=("/etc/kubernetes/manifests/kube-apiserver.yaml" "/etc/kubernetes/manifests/kubernetesmaster-kube-controller-manager.yaml" "/etc/kubernetes/addons/kube-proxy-daemonset.yaml" "/etc/kubernetes/manifests/kube-scheduler.yaml")
+    declare -a envudpatefilelist=("/etc/kubernetes/manifests/kube-apiserver.yaml" "/etc/kubernetes/manifests/kube-controller-manager.yaml" "/etc/kubernetes/addons/kube-proxy-daemonset.yaml" "/etc/kubernetes/manifests/kube-scheduler.yaml")
 {{if IsAzureStackCloud}}
     for file in "${envudpatefilelist[@]}"
     do
