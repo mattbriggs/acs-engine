@@ -53,6 +53,32 @@ write_files:
       "armContainerRegistryAPIVersion": "2017-03-01"
    }
 
+{{if IsAzureStackCloud}}
+- path: "/etc/kubernetes/azurestackcloud.json"
+  permissions: "0644"
+  owner: "root"
+  content: |
+   {
+      "name": "{{WrapAsVariable "cloudprofileName"}}",
+      "managementPortalURL": "{{WrapAsVariable "cloudprofileManagementPortalURL"}}",
+      "publishSettingsURL": "{{WrapAsVariable "cloudprofilePublishSettingsURL"}}",
+      "serviceManagementEndpoint": "{{WrapAsVariable "cloudprofileServiceManagementEndpoint"}}",
+      "resourceManagerEndpoint": "{{WrapAsVariable "cloudprofileResourceManagerEndpoint"}}",
+      "activeDirectoryEndpoint": "{{WrapAsVariable "cloudprofileActiveDirectoryEndpoint"}}",
+      "galleryEndpoint": "{{WrapAsVariable "cloudprofileGalleryEndpoint"}}",
+      "keyVaultEndpoint": "{{WrapAsVariable "cloudprofileKeyVaultEndpoint"}}",
+      "graphEndpoint": "{{WrapAsVariable "cloudprofileGraphEndpoint"}}",
+      "storageEndpointSuffix": "{{WrapAsVariable "cloudprofileStorageEndpointSuffix"}}",
+      "sQLDatabaseDNSSuffix": "{{WrapAsVariable "cloudprofileSQLDatabaseDNSSuffix"}}",
+      "trafficManagerDNSSuffix": "{{WrapAsVariable "cloudprofileTrafficManagerDNSSuffix"}}",
+      "keyVaultDNSSuffix": "{{WrapAsVariable "cloudprofileKeyVaultDNSSuffix"}}",
+      "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
+      "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
+      "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
+      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}"
+   }
+{{end}}
+
 - path: "/etc/systemd/system/docker.service.d/exec_start.conf"
   permissions: "0644"
   owner: "root"
@@ -199,7 +225,27 @@ MASTER_ADDONS_CONFIG_PLACEHOLDER
     KUBELET_REGISTER_SCHEDULABLE={{WrapAsVariable "registerSchedulable"}}
 {{end}}
 
+{{if IsAzureStackCloud}}
+    KUBELET_Env_File_Setting = "--env-file=/etc/default/kubelet_env_variable"
+{{end}}
+
 MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
+
+{{if IsAzureStackCloud}}
+- path: "/etc/default/kubelet_env_variable"
+  permissions: "0644"
+  owner: "root"
+  content: |
+    APIVERSION_ARM_COMPUTE=2016-03-30
+    APIVERSION_ARM_COMPUTE_CONTAINERSERVICE=2016-03-30
+    APIVERSION_ARM_CONTAINERREGISTRY=2017-10-01
+    APIVERSION_ARM_DISK=2016-04-30-preview
+    APIVERSION_ARM_NETWORK=2015-06-15
+    APIVERSION_ARM_NETWORK_SCALESET=2015-06-15
+    APIVERSION_ARM_STORAGE=2016-01-01
+    APIVERSION_STORAGE=2016-05-31
+    AZURE_ENVIRONMENT_FILEPATH=/etc/kubernetes/azurestackcloud.json
+{{end}}
 
 - path: "/opt/azure/containers/kubelet.sh"
   permissions: "0755"
@@ -300,6 +346,56 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
     sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
 {{if not EnablePodSecurityPolicy}}
     sed -i "s|apparmor_parser|d|g" "/etc/systemd/system/kubelet.service"
+{{end}}
+    declare -a envudpatefilelist=("/etc/kubernetes/manifests/kube-apiserver.yaml" "/etc/kubernetes/manifests/kube-controller-manager.yaml" "/etc/kubernetes/addons/kube-proxy-daemonset.yaml" "/etc/kubernetes/manifests/kube-scheduler.yaml")
+{{if IsAzureStackCloud}}
+    for file in "${envudpatefilelist[@]}"
+    do
+        sed -i "s|<kubernetesHyperkubeEnvVariableTag>|env:|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_Tag>|- name: APIVERSION_ARM_COMPUTE|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_Value>|value: \"2016-03-30\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_CONTAINERSERVICE_Tag>|- name: APIVERSION_ARM_COMPUTE_CONTAINERSERVICE|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_CONTAINERSERVICE_Value>|value: \"2016-03-30\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_CONTAINERREGISTRY_Tag>|- name: APIVERSION_ARM_CONTAINERREGISTRY|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_CONTAINERREGISTRY_Value>|value: \"2017-10-01\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_DISK_Tag>|- name: APIVERSION_ARM_DISK|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_DISK_Value>|value: \"2016-04-30-preview\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_Tag>|- name: APIVERSION_ARM_NETWORK|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_Value>|value: \"2015-06-15\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Tag>|- name: APIVERSION_ARM_NETWORK_SCALESET|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Value>|value: \"2015-06-15\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Tag>|- name: APIVERSION_ARM_STORAGE|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Value>|value: \"2015-06-15\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Tag>|- name: APIVERSION_STORAGE|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Value>|value: \"2016-05-31\"|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Tag>|- name: AZURE_ENVIRONMENT_FILEPATH|g" "$file"
+        sed -i "s|<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>|value: \"/etc/kubernetes/azurestackcloud.json\"|g" "$file"
+    done
+    sed -i "s|<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>|value: \"/etc/kubernetes/azurestackcloud.json\"|g" "$file"
+{{else}}
+    for file in "${envudpatefilelist[@]}"
+    do
+        sed -i "/<kubernetesHyperkubeEnvVariableTag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_CONTAINERSERVICE_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_COMPUTE_CONTAINERSERVICE_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_CONTAINERREGISTRY_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_CONTAINERREGISTRY_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_DISK_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_DISK_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_NETWORK_SCALESET_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_ARM_STORAGE_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_APIVERSION_STORAGE_Value>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Tag>/d" "$file"
+        sed -i "/<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>/d" "$file"
+    done 
+    sed -i "/<kubernetesHyperkubeEnv_AZURE_ENVIRONMENT_FILEPATH_Value>/d" "$file"
 {{end}}
 
 - path: "/opt/azure/containers/provision.sh"
