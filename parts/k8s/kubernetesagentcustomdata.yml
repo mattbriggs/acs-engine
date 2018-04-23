@@ -16,7 +16,6 @@ write_files:
     [Service]
     MountFlags=shared
 {{end}}
-<<<<<<< HEAD
 - path: "/etc/kubernetes/azurestackcloud.json"
   permissions: "0644"
   owner: "root"
@@ -48,35 +47,6 @@ write_files:
       "storageAPIVersion": "2016-05-31",
       "armContainerRegistryAPIVersion": "2017-03-01"
     }
-=======
-{{if IsAzureStackCloud}}
-- path: "/etc/kubernetes/azurestackcloud.json"
-  permissions: "0644"
-  owner: "root"
-  content: |
-    {
-      "name": "{{WrapAsVariable "cloudprofileName"}}",
-      "managementPortalURL": "{{WrapAsVariable "cloudprofileManagementPortalURL"}}",
-      "publishSettingsURL": "{{WrapAsVariable "cloudprofilePublishSettingsURL"}}",
-      "serviceManagementEndpoint": "{{WrapAsVariable "cloudprofileServiceManagementEndpoint"}}",
-      "resourceManagerEndpoint": "{{WrapAsVariable "cloudprofileResourceManagerEndpoint"}}",
-      "activeDirectoryEndpoint": "{{WrapAsVariable "cloudprofileActiveDirectoryEndpoint"}}",
-      "galleryEndpoint": "{{WrapAsVariable "cloudprofileGalleryEndpoint"}}",
-      "keyVaultEndpoint": "{{WrapAsVariable "cloudprofileKeyVaultEndpoint"}}",
-      "graphEndpoint": "{{WrapAsVariable "cloudprofileGraphEndpoint"}}",
-      "storageEndpointSuffix": "{{WrapAsVariable "cloudprofileStorageEndpointSuffix"}}",
-      "sQLDatabaseDNSSuffix": "{{WrapAsVariable "cloudprofileSQLDatabaseDNSSuffix"}}",
-      "trafficManagerDNSSuffix": "{{WrapAsVariable "cloudprofileTrafficManagerDNSSuffix"}}",
-      "keyVaultDNSSuffix": "{{WrapAsVariable "cloudprofileKeyVaultDNSSuffix"}}",
-      "serviceBusEndpointSuffix": "{{WrapAsVariable "cloudprofileServiceBusEndpointSuffix"}}",
-      "serviceManagementVMDNSSuffix": "{{WrapAsVariable "cloudprofileServiceManagementVMDNSSuffix"}}",
-      "resourceManagerVMDNSSuffix": "{{WrapAsVariable "cloudprofileResourceManagerVMDNSSuffix"}}",
-      "containerRegistryDNSSuffix": "{{WrapAsVariable "cloudprofileContainerRegistryDNSSuffix"}}",
-      "location": "{{WrapAsVariable "cloudprofileLocation"}}"
-    }
-{{end}}
-
->>>>>>> honcaowin
 - path: "/etc/systemd/system/docker.service.d/exec_start.conf"
   permissions: "0644"
   owner: "root"
