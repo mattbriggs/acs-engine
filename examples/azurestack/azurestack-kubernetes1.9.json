@@ -5,13 +5,12 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.9",
       "kubernetesConfig": {
-        "CustomHyperkubeImage": "msazurestackdocker/k8s1.9:latest",
+        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:1.9.6",
         "networkPolicy": "none"
       }
-
     },
-       "cloudProfile": {
-              "name": "AzureStackCloud",
+    "cloudProfile": {
+        "name": "AzureStackCloud",
         "managementPortalURL": "",
         "publishSettingsURL": "",
         "serviceManagementEndpoint": "https://management.azurestackci11.onmicrosoft.com/8d887891-6596-46c4-bdb6-1fbde1edbc7e",
@@ -55,14 +54,14 @@
       "ssh": {
         "publicKeys": [
           {
-            "keyData": ""
+            "keyData": "ssh-rsa PUBLICKEY imported-openssh-key"
           }
         ]
       }
     },
     "servicePrincipalProfile": {
-      "clientId": "",
-      "secret": ""
+      "clientId": "ServicePrincipalClientID",
+      "secret": "myServicePrincipalClientSecret"
     }
   }
 }

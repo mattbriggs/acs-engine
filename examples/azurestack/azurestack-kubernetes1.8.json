@@ -5,7 +5,7 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.8",
 	    "kubernetesConfig": {
-        "CustomHyperkubeImage": "msazurestackdocker/k8s1.8:latest",
+        "CustomHyperkubeImage": "msazurestackdocker/kubernetes:1.8.9",
         "networkPolicy": "none"
       }
     },
@@ -50,14 +50,14 @@
       "ssh": {
         "publicKeys": [
           {
-            "keyData": ""
+            "keyData": "ssh-rsa PUBLICKEY imported-openssh-key"
           }
         ]
       }
     },
     "servicePrincipalProfile": {
-      "clientId":  "",
-      "secret":  ""
+      "clientId":  "ServicePrincipalClientID",
+      "secret":  "myServicePrincipalClientSecret"
     }
   }
 }
