@@ -122,7 +122,7 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 }
 
 // formatAzureProdFQDNs constructs all possible Azure prod fqdn
-func formatAzureProdFQDNs(fqdnPrefix string) []string {
+func formatAzureProdFQDNs(fqdnPrefix string, properties *api.Properties) []string {
 	var fqdns []string
 	for _, location := range AzureLocations {
 		fqdns = append(fqdns, FormatAzureProdFQDN(fqdnPrefix, location, properties))

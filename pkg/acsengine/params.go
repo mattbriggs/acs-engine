@@ -13,7 +13,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 	properties := cs.Properties
 	location := cs.Location
 	parametersMap := paramsMap{}
-	cloudSpecConfig := getCloudSpecConfig(location)
+	cloudSpecConfig := getCloudSpecConfig(location, cs.Properties)
 
 	// acsengine Parameters
 	addValue(parametersMap, "acsengineVersion", acsengineVersion)

@@ -688,35 +688,35 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return cs.Properties.LinuxProfile.ScriptRootURL
 		},
 		"GetMasterOSImageOffer": func() string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageOffer)
 		},
 		"GetMasterOSImagePublisher": func() string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImagePublisher)
 		},
 		"GetMasterOSImageSKU": func() string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageSku)
 		},
 		"GetMasterOSImageVersion": func() string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[cs.Properties.MasterProfile.Distro].ImageVersion)
 		},
 		"GetAgentOSImageOffer": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageOffer)
 		},
 		"GetAgentOSImagePublisher": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImagePublisher)
 		},
 		"GetAgentOSImageSKU": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageSku)
 		},
 		"GetAgentOSImageVersion": func(profile *api.AgentPoolProfile) string {
-			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 			return fmt.Sprintf("\"%s\"", cloudSpecConfig.OSImageConfig[profile.Distro].ImageVersion)
 		},
 		"UseAgentCustomImage": func(profile *api.AgentPoolProfile) bool {
@@ -739,7 +739,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 				val = ""
 			} else {
 				k8sVersion := cs.Properties.OrchestratorProfile.OrchestratorVersion
-				cloudSpecConfig := getCloudSpecConfig(cs.Location)
+				cloudSpecConfig := getCloudSpecConfig(cs.Location, cs.Properties)
 				tillerAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultTillerAddonName)
 				tC := getAddonContainersIndexByName(tillerAddon.Containers, DefaultTillerAddonName)
 				aciConnectorAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultACIConnectorAddonName)
