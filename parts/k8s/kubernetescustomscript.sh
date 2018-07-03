@@ -48,16 +48,6 @@ if [[ $OS == $COREOS_OS_NAME ]]; then
     KUBECTL=/opt/kubectl
 fi
 
-ensureRunCommandCompleted()
-{
-    echo "waiting for runcmd to finish"
-    wait_for_file 900 1 /opt/azure/containers/runcmd.complete
-    if [ ! -f /opt/azure/containers/runcmd.complete ]; then
-        echo "Timeout waiting for cloud-init runcmd to complete"
-        exit 5
-    fi
-}
-
 ensureCertificates()
 {
     echo "Updating certificates"
@@ -69,18 +59,6 @@ ensureCertificates()
 	update-ca-certificates
 }
 
-# cloudinit runcmd and the extension will run in parallel, this is to ensure
-# runcmd finishes
-ensureDockerInstallCompleted()
-{
-    echo "waiting for docker install to finish"
-    wait_for_file 3600 1 /opt/azure/containers/dockerinstall.complete
-    if [ ! -f /opt/azure/containers/dockerinstall.complete ]; then
-        echo "Timeout waiting for docker install to finish"
-        exit 20
-    fi
-}
-
 echo `date`,`hostname`, startscript>>/opt/m
 
 if [ -f /var/run/reboot-required ]; then
@@ -90,7 +68,8 @@ else
 fi
 
 function testOutboundConnection() {
-    retrycmd_if_failure 120 1 20 nc -v 8.8.8.8 53 || retrycmd_if_failure 120 1 20 nc -v 8.8.4.4 53 || exit $ERR_OUTBOUND_CONN_FAIL
+    echo "TODO: find a way to verify outside connection in azure stack"
+    # retrycmd_if_failure 120 1 20 nc -v 8.8.8.8 53 || retrycmd_if_failure 120 1 20 nc -v 8.8.4.4 53 || exit $ERR_OUTBOUND_CONN_FAIL
 }
 
 function waitForCloudInit() {
@@ -527,8 +506,8 @@ fi
 
 if [ -f $CUSTOM_SEARCH_DOMAIN_SCRIPT ]; then
     $CUSTOM_SEARCH_DOMAIN_SCRIPT > /opt/azure/containers/setup-custom-search-domain.log 2>&1 || exit $ERR_CUSTOM_SEARCH_DOMAINS_FAIL
+fi
 
-ensureRunCommandCompleted
 echo `date`,`hostname`, RunCmdCompleted>>/opt/m
 
 if [[ $OS == $UBUNTU_OS_NAME ]]; then
