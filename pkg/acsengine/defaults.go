@@ -215,7 +215,7 @@ var (
 		DCOSSpecConfig:       DefaultDCOSSpecConfig,
 
 		EndpointConfig: AzureEndpointConfig{
-			ResourceManagerVMDNSSuffix: "cloudapp.azurestack.external",
+			ResourceManagerVMDNSSuffix: "",
 		},
 
 		OSImageConfig: map[api.Distro]AzureOSImageConfig{
@@ -354,11 +354,26 @@ func setPropertiesDefaults(cs *api.ContainerService, isUpgrade bool) (bool, erro
 	setStorageDefaults(properties)
 	setExtensionDefaults(properties)
 
+	setEndpointsDefaults(properties)
+
 	certsGenerated, e := setDefaultCerts(properties)
 	if e != nil {
 		return false, e
 	}
 	return certsGenerated, nil
+}
+
+// setEndpointsDefaults for orchestrators
+func setEndpointsDefaults(a *api.Properties) {
+
+	if a.CloudProfile != nil {
+		var cloudprofileResourceManagerVMDNSSuffix = a.CloudProfile.ResourceManagerVMDNSSuffix
+		if cloudprofileResourceManagerVMDNSSuffix == "" {
+			log.Fatalf("CloudProfile type %s has empty resourceManagerVMDNSSuffix specified", a.CloudProfile.Name)
+		}
+
+		AzureStackCloudSpec.EndpointConfig.ResourceManagerVMDNSSuffix = a.CloudProfile.ResourceManagerVMDNSSuffix
+	}
 }
 
 // setOrchestratorDefaults for orchestrators
