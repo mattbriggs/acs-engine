@@ -151,15 +151,15 @@ func (dc *deployCmd) load(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(fmt.Sprintf("--location does not match api model location"))
 	}
 
-	if err = dc.authArgs.validateAuthArgs(); err != nil {
-		return fmt.Errorf("%s", err)
-	}
-
 	// For Hybrid cloud we need to write the cloud profile locally.
 	if dc.containerService.Properties.CloudProfile != nil {
 		if strings.EqualFold(dc.containerService.Properties.CloudProfile.Name, "AzureStackCloud") {
 			writeCloudProfile("/etc/kubernetes", "azurestackcloud.json", dc)
 		}
+	}
+
+	if err = dc.authArgs.validateAuthArgs(); err != nil {
+		return fmt.Errorf("%s", err)
 	}
 
 	dc.client, err = dc.authArgs.getClient()
