@@ -335,7 +335,11 @@
         "dnsSettings": {
           "domainNameLabel": "[variables('masterFqdnPrefix')]"
         },
+        {{if IsAzureStackCloud}}
+        "publicIPAllocationMethod": "Static"
+        {{else}}
         "publicIPAllocationMethod": "Dynamic"
+        {{end}}
       },
       "type": "Microsoft.Network/publicIPAddresses"
     },
