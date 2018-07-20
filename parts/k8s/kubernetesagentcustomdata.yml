@@ -108,8 +108,10 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
+        {{if IsMultipleMasters}}
         {{if IsAzureStackCloud}}   
         server: https://<kubernetesAPIServerIP>:443
+        {{end}}
         {{else}}
         server: https://{{WrapAsVariable "kubernetesAPIServerIP"}}:443
         {{end}}
@@ -192,9 +194,11 @@ AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
     sed -i "s|<searchDomainRealmUser>|{{WrapAsVariable "searchDomainRealmUser"}}|g" "/opt/azure/containers/setup-custom-search-domains.sh"
     sed -i "s|<searchDomainRealmPassword>|{{WrapAsVariable "searchDomainRealmPassword"}}|g" "/opt/azure/containers/setup-custom-search-domains.sh"
 {{end}}
-{{if IsAzureStackCloud}}   
+{{if IsMultipleMasters}}
+{{if IsAzureStackCloud}}
     masterLBIP=`getent hosts  {{WrapAsVariable "kubeconfigServer"}} |  awk "{ print $1 }"`
     sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/var/lib/kubelet/kubeconfig"
+{{end}}
 {{end}}
 
 - path: "/opt/azure/containers/provision.sh"

@@ -162,11 +162,14 @@ func (t *TemplateGenerator) prepareTemplateFiles(properties *api.Properties) ([]
 func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) template.FuncMap {
 	return template.FuncMap{
 		"IsAzureStackCloud": func() bool {
-			var cloudProfileName string = ""
+			var cloudProfileName string
 			if cs.Properties.CloudProfile != nil {
 				cloudProfileName = cs.Properties.CloudProfile.Name
 			}
 			return strings.EqualFold(cloudProfileName, azureStackCloud)
+		},
+		"IsMultipleMasters": func() bool {
+			return cs.Properties.MasterProfile.Count > 1
 		},
 		"IsHostedMaster": func() bool {
 			return cs.Properties.HostedMasterProfile != nil

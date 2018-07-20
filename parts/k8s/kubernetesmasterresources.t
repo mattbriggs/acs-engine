@@ -335,8 +335,10 @@
         "dnsSettings": {
           "domainNameLabel": "[variables('masterFqdnPrefix')]"
         },
+        {{if IsMultipleMasters}}
         {{if IsAzureStackCloud}}
         "publicIPAllocationMethod": "Static"
+        {{end}}
         {{else}}
         "publicIPAllocationMethod": "Dynamic"
         {{end}}
