@@ -196,7 +196,7 @@ AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
 {{end}}
 {{if IsMultipleMasters}}
 {{if IsAzureStackCloud}}
-    masterLBIP=`getent hosts  {{WrapAsVariable "masterPublicLbFQDN"}} |  awk "{ print $1 }"`
+    masterLBIP=`getent hosts  {{WrapAsVariable "masterPublicLbFQDN"}} | cut -d " " -f1`
     sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/var/lib/kubelet/kubeconfig"
 {{end}}
 {{end}}
