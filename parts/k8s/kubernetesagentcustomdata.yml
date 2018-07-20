@@ -195,7 +195,7 @@ AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
 {{if IsAzureStackCloud}}   
     masterLBIP=`getent hosts  {{WrapAsVariable "kubeconfigServer"}} |  awk "{ print $1 }"`
     sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/var/lib/kubelet/kubeconfig"
-{{else}}
+{{end}}
 
 - path: "/opt/azure/containers/provision.sh"
   permissions: "0744"
