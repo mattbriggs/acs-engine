@@ -333,7 +333,7 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
     sed -i "s|<kubernetesAPIServerConfig>|{{GetK8sRuntimeConfigKeyVals .OrchestratorProfile.KubernetesConfig.APIServerConfig}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
     sed -i "s|<kubernetesSchedulerConfig>|{{GetK8sRuntimeConfigKeyVals .OrchestratorProfile.KubernetesConfig.SchedulerConfig}}|g" "/etc/kubernetes/manifests/kube-scheduler.yaml"
 {{if IsAzureStackCloud}}   
-    masterLBIP=`getent hosts  {{WrapAsVariable "kubeconfigServer"}} |  awk '{ print $1 }'`
+    masterLBIP=`getent hosts  {{WrapAsVariable "kubeconfigServer"}} |  awk "{ print $1 }"`
     sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
 {{else}}
     sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
