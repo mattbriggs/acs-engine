@@ -380,6 +380,9 @@
     "masterInternalLbIPConfigID": "[concat(variables('masterInternalLbID'),'/frontendIPConfigurations/', variables('masterInternalLbIPConfigName'))]",
     "masterInternalLbIPOffset": {{GetDefaultInternalLbStaticIPOffset}},
     "kubernetesAPIServerIP": "[concat(variables('masterFirstAddrPrefix'), add(variables('masterInternalLbIPOffset'), int(variables('masterFirstAddrOctet4'))))]",
+    {{if IsAzureStackCloud}}
+    "masterPublicLbFQDN": "[concat(variables('masterFqdnPrefix'), '.', variables('location'), '.', variables('fqdnEndpointSuffix'))]",
+    {{end}}
 {{else}}
     "kubernetesAPIServerIP": "[parameters('firstConsecutiveStaticIP')]",
 {{end}}
