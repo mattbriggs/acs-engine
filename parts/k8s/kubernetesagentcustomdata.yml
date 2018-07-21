@@ -108,13 +108,7 @@ write_files:
     - name: localcluster
       cluster:
         certificate-authority: /etc/kubernetes/certs/ca.crt
-        {{if IsMultipleMasters}}
-        {{if IsAzureStackCloud}}   
         server: https://<kubernetesAPIServerIP>:443
-        {{end}}
-        {{else}}
-        server: https://{{WrapAsVariable "kubernetesAPIServerIP"}}:443
-        {{end}}
     users:
     - name: client
       user:
@@ -196,9 +190,12 @@ AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
 {{end}}
 {{if IsMultipleMasters}}
 {{if IsAzureStackCloud}}
-    masterLBIP=`getent hosts  {{WrapAsVariable "masterPublicLbFQDN"}} | cut -d " " -f1`
-    sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/var/lib/kubelet/kubeconfig"
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "masterPublicLbFQDN"}}|g" "/var/lib/kubelet/kubeconfig"
+{{else}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
 {{end}}
+{{else}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
 {{end}}
 
 - path: "/opt/azure/containers/provision.sh"
