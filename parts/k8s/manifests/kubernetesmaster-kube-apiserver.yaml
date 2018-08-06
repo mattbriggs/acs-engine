@@ -26,6 +26,8 @@ spec:
           readOnly: true
         - name: "sock"
           mountPath: "/opt"
+        - name: "auditlog"
+          mountPath: "/var/log/kubeaudit"
   volumes:
     - name: "etc-kubernetes"
       hostPath:
@@ -39,6 +41,11 @@ spec:
     - name: "sock"
       hostPath:
         path: "/opt"
+    - name: "auditlog"
+      hostPath:
+        path: "/var/log/kubeaudit"
     - name: ssl
       hostPath:
         path: "/etc/ssl/certs"
+
+

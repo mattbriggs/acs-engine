@@ -744,7 +744,8 @@ func setVlabsKubernetesDefaults(vp *vlabs.Properties, api *OrchestratorProfile) 
 
 	if vp.OrchestratorProfile.KubernetesConfig != nil {
 		// Included here for backwards compatibility with deprecated NetworkPolicy usage patterns
-		if vp.OrchestratorProfile.KubernetesConfig.NetworkPolicy == NetworkPolicyAzure {
+		if vp.OrchestratorProfile.KubernetesConfig.NetworkPlugin == "" &&
+			vp.OrchestratorProfile.KubernetesConfig.NetworkPolicy == NetworkPolicyAzure {
 			api.KubernetesConfig.NetworkPlugin = vp.OrchestratorProfile.KubernetesConfig.NetworkPolicy
 			api.KubernetesConfig.NetworkPolicy = "" // no-op but included for emphasis
 		} else if vp.OrchestratorProfile.KubernetesConfig.NetworkPolicy == NetworkPolicyNone {
@@ -787,6 +788,18 @@ func convertAddonsToAPI(v *vlabs.KubernetesConfig, a *KubernetesConfig) {
 			for key, val := range v.Addons[i].Config {
 				a.Addons[i].Config[key] = val
 			}
+		}
+	}
+}
+
+func convertCustomFilesToAPI(v *vlabs.MasterProfile, a *MasterProfile) {
+	if v.CustomFiles != nil {
+		a.CustomFiles = &[]CustomFile{}
+		for i := range *v.CustomFiles {
+			*a.CustomFiles = append(*a.CustomFiles, CustomFile{
+				Dest:   (*v.CustomFiles)[i].Dest,
+				Source: (*v.CustomFiles)[i].Source,
+			})
 		}
 	}
 }
@@ -933,6 +946,8 @@ func convertVLabsMasterProfile(vlabs *vlabs.MasterProfile, api *MasterProfile) {
 		api.ImageRef.Name = vlabs.ImageRef.Name
 		api.ImageRef.ResourceGroup = vlabs.ImageRef.ResourceGroup
 	}
+
+	convertCustomFilesToAPI(vlabs, api)
 }
 
 func convertV20160930AgentPoolProfile(v20160930 *v20160930.AgentPoolProfile, availabilityProfile string, api *AgentPoolProfile) {
@@ -1014,6 +1029,7 @@ func convertVLabsAgentPoolProfile(vlabs *vlabs.AgentPoolProfile, api *AgentPoolP
 	api.Subnet = vlabs.GetSubnet()
 	api.IPAddressCount = vlabs.IPAddressCount
 	api.FQDN = vlabs.FQDN
+	api.AcceleratedNetworkingEnabled = vlabs.AcceleratedNetworkingEnabled
 
 	api.CustomNodeLabels = map[string]string{}
 	for k, v := range vlabs.CustomNodeLabels {

@@ -51,6 +51,7 @@ type KubernetesSpecConfig struct {
 	TillerImageBase                  string
 	ACIConnectorImageBase            string
 	NVIDIAImageBase                  string
+	AzureCNIImageBase                string
 	EtcdDownloadURLBase              string
 	KubeBinariesSASURLBase           string
 	WindowsPackageSASURLBase         string
@@ -75,6 +76,7 @@ type AzureOSImageConfig struct {
 
 //AzureEnvironmentSpecConfig is the overall configuration differences in different cloud environments.
 type AzureEnvironmentSpecConfig struct {
+	CloudName            string
 	DockerSpecConfig     DockerSpecConfig
 	KubernetesSpecConfig KubernetesSpecConfig
 	DCOSSpecConfig       DCOSSpecConfig

@@ -302,6 +302,10 @@ TODO
 
 Windows support is still in active development with many changes each week. Read on for more info on known per-version issues and troubleshooting if you run into problems.
 
+### Finding logs
+
+To connect to a Windows node using Remote Desktop and get logs, please read over this topic in the main [troubleshooting](troubleshooting.md#connecting-to-windows-nodes) page first.
+
 ### Checking versions
 
 Please be sure to include this info with any Windows bug reports.
@@ -312,12 +316,6 @@ Kubernetes
 `kubectl describe node <windows node>`
 -	“kernel version”
 -	Also note the IP Address for the next step, but you don't need to share it
-
-Windows config
-Connect to the Windows node with remote desktop. This is easiest forwarding a port through SSH from your Kubernetes management endpoint.
-
-1.	`ssh -L 5500:<internal ip>:3389 user@masterFQDN`
-2.	Once connected, run `mstsc.exe /v:localhost:5500` to connect. Log in with the username & password you set for the Windows agents.
 
 The Azure CNI plugin version and configuration is stored in `C:\k\azurecni\netconf\10-azure.conflist`. Get
 -	mode
@@ -341,6 +339,7 @@ V0.16.2	| Windows Server version 1709 (10.0.16299.____)	| V1.9.7 | ? | DNS resol
 V0.17.0 | Windows Server version 1709	| V1.10.2 | v1.0.4 | Acs-engine version 0.17 defaults to Windows Server version 1803. You can override it to use 1709 instead [here](#choosing-the-windows-server-version). Manual workarounds needed on Windows for DNS Server list, DNS search suffix
 V0.17.0 | Windows Server version 1803 (10.0.17134.1) | V1.10.2 | v1.0.4 | Manual workarounds needed on Windows for DNS Server list, DNS search suffix, and dropped packets
 v0.17.1 | Windows Server version 1709 | v1.10.3 | v1.0.4-1-gf0f090e | Manual workarounds needed on Windows for DNS Server list and DNS search suffix. This ACS-Engine version defaults to Windows Server version 1803, but you can override it to use 1709 instead [here](#choosing-the-windows-server-version)
+v0.18.3 | Windows Server version 1803 | v1.10.3 | v1.0.6 | Manual workaround needed for DNS search suffix
 
 ### Known problems
 

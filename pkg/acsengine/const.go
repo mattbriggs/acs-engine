@@ -50,7 +50,9 @@ const (
 	NetworkPolicyCalico = "calico"
 	// NetworkPolicyCilium is the string expression for cilium network policy config option
 	NetworkPolicyCilium = "cilium"
-	// NetworkPluginAzure is the string expression for Azure CNI network policy
+	// NetworkPolicyAzure is the string expression for Azure CNI network policy manager
+	NetworkPolicyAzure = "azure"
+	// NetworkPluginAzure is the string expression for Azure CNI plugin
 	NetworkPluginAzure = "azure"
 	// NetworkPluginKubenet is the string expression for kubenet network plugin
 	NetworkPluginKubenet = "kubenet"
@@ -106,6 +108,8 @@ const (
 	DefaultDashboardAddonName = "kubernetes-dashboard"
 	// DefaultClusterAutoscalerAddonName is the name of the autoscaler addon deployment
 	DefaultClusterAutoscalerAddonName = "cluster-autoscaler"
+	// DefaultKeyVaultFlexVolumeAddonName is the name of the keyvault flexvolume addon deployment
+	DefaultKeyVaultFlexVolumeAddonName = "keyvault-flexvolume"
 	// DefaultKubernetesDNSServiceIP specifies the IP address that kube-dns
 	// listens on by default. must by in the default Service CIDR range.
 	DefaultKubernetesDNSServiceIP = "10.0.0.10"
@@ -123,7 +127,7 @@ const (
 	// DefaultOpenshiftOrchestratorName specifies the 3 character orchestrator code of the cluster template and affects resource naming.
 	DefaultOpenshiftOrchestratorName = "ocp"
 	// DefaultEtcdVersion specifies the default etcd version to install
-	DefaultEtcdVersion = "3.2.16"
+	DefaultEtcdVersion = "3.2.23"
 	// DefaultEtcdDiskSize specifies the default size for Kubernetes master etcd disk volumes in GB
 	DefaultEtcdDiskSize = "256"
 	// DefaultEtcdDiskSizeGT3Nodes = size for Kubernetes master etcd disk volumes in GB if > 3 nodes
@@ -136,8 +140,14 @@ const (
 	DefaultReschedulerAddonName = "rescheduler"
 	// DefaultMetricsServerAddonName is the name of the kubernetes Metrics server addon deployment
 	DefaultMetricsServerAddonName = "metrics-server"
-	// DefaultNVIDIADevicePluginAddonName is the name of the kubernetes NVIDIA Device Plugin daemon set
-	DefaultNVIDIADevicePluginAddonName = "nvidia-device-plugin"
+	// NVIDIADevicePluginAddonName is the name of the kubernetes NVIDIA Device Plugin daemon set
+	NVIDIADevicePluginAddonName = "nvidia-device-plugin"
+	// ContainerMonitoringAddonName is the name of the kubernetes Container Monitoring addon deployment
+	ContainerMonitoringAddonName = "container-monitoring"
+	// AzureCNINetworkMonitoringAddonName is the name of the Azure CNI networkmonitor addon
+	AzureCNINetworkMonitoringAddonName = "azure-cni-networkmonitor"
+	// AzureNetworkPolicyAddonName is the name of the Azure CNI networkmonitor addon
+	AzureNetworkPolicyAddonName = "azure-npm-daemonset"
 	// DefaultKubernetesKubeletMaxPods is the max pods per kubelet
 	DefaultKubernetesKubeletMaxPods = 110
 	// DefaultMasterEtcdServerPort is the default etcd server port for Kubernetes master nodes
@@ -256,6 +266,7 @@ const (
 	kubernetesWinAgentVarsVMSS    = "k8s/kuberneteswinagentresourcesvmss.t"
 	masterOutputs                 = "masteroutputs.t"
 	masterParams                  = "masterparams.t"
+	openshiftInfraResources       = "openshift/infraresources.t"
 	swarmBaseFile                 = "swarm/swarmbase.t"
 	swarmParams                   = "swarm/swarmparams.t"
 	swarmAgentResourcesVMAS       = "swarm/swarmagentresourcesvmas.t"

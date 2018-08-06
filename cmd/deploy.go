@@ -24,6 +24,7 @@ import (
 	"github.com/Azure/acs-engine/pkg/i18n"
 	"github.com/Azure/azure-sdk-for-go/arm/graphrbac"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -52,6 +53,7 @@ type deployCmd struct {
 	caPrivateKeyPath  string
 	classicMode       bool
 	parametersOnly    bool
+	set               []string
 
 	// derived
 	containerService *api.ContainerService
@@ -72,11 +74,17 @@ func newDeployCmd() *cobra.Command {
 		Short: deployShortDescription,
 		Long:  deployLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := dc.validate(cmd, args); err != nil {
-				log.Fatalf(fmt.Sprintf("error validating deployCmd: %s", err.Error()))
+			if err := dc.validateArgs(cmd, args); err != nil {
+				log.Fatalf("error validating deployCmd: %s", err.Error())
 			}
-			if err := dc.load(cmd, args); err != nil {
-				log.Fatalln("failed to load apimodel: %s", err.Error())
+			if err := dc.mergeAPIModel(); err != nil {
+				log.Fatalf("error merging API model in deployCmd: %s", err.Error())
+			}
+			if err := dc.loadAPIModel(cmd, args); err != nil {
+				log.Fatalf("failed to load apimodel: %s", err.Error())
+			}
+			if _, _, err := dc.validateApimodel(); err != nil {
+				log.Fatalf("Failed to validate the apimodel after populating values: %s", err.Error())
 			}
 			return dc.run()
 		},
@@ -92,18 +100,19 @@ func newDeployCmd() *cobra.Command {
 	f.StringVarP(&dc.resourceGroup, "resource-group", "g", "", "resource group to deploy to (will use the DNS prefix from the apimodel if not specified)")
 	f.StringVarP(&dc.location, "location", "l", "", "location to deploy to (required)")
 	f.BoolVarP(&dc.forceOverwrite, "force-overwrite", "f", false, "automatically overwrite existing files in the output directory")
+	f.StringArrayVar(&dc.set, "set", []string{}, "set values on the command line (can specify multiple or separate values with commas: key1=val1,key2=val2)")
 
 	addAuthFlags(&dc.authArgs, f)
 
 	return deployCmd
 }
 
-func (dc *deployCmd) validate(cmd *cobra.Command, args []string) error {
+func (dc *deployCmd) validateArgs(cmd *cobra.Command, args []string) error {
 	var err error
 
 	dc.locale, err = i18n.LoadTranslations()
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("error loading translation files: %s", err.Error()))
+		return errors.Wrap(err, "error loading translation files")
 	}
 
 	if dc.apimodelPath == "" {
@@ -111,26 +120,48 @@ func (dc *deployCmd) validate(cmd *cobra.Command, args []string) error {
 			dc.apimodelPath = args[0]
 		} else if len(args) > 1 {
 			cmd.Usage()
-			return fmt.Errorf(fmt.Sprintf("too many arguments were provided to 'deploy'"))
+			return errors.New("too many arguments were provided to 'deploy'")
 		} else {
 			cmd.Usage()
-			return fmt.Errorf(fmt.Sprintf("--api-model was not supplied, nor was one specified as a positional argument"))
+			return errors.New("--api-model was not supplied, nor was one specified as a positional argument")
 		}
 	}
 
 	if _, err := os.Stat(dc.apimodelPath); os.IsNotExist(err) {
-		return fmt.Errorf(fmt.Sprintf("specified api model does not exist (%s)", dc.apimodelPath))
+		return errors.Errorf("specified api model does not exist (%s)", dc.apimodelPath)
 	}
 
 	if dc.location == "" {
-		return fmt.Errorf(fmt.Sprintf("--location must be specified"))
+		return errors.New("--location must be specified")
 	}
 	dc.location = helpers.NormalizeAzureRegion(dc.location)
 
 	return nil
 }
 
-func (dc *deployCmd) load(cmd *cobra.Command, args []string) error {
+func (dc *deployCmd) mergeAPIModel() error {
+	var err error
+
+	// if --set flag has been used
+	if dc.set != nil && len(dc.set) > 0 {
+		m := make(map[string]transform.APIModelValue)
+		transform.MapValues(m, dc.set)
+
+		// overrides the api model and generates a new file
+		dc.apimodelPath, err = transform.MergeValuesWithAPIModel(dc.apimodelPath, m)
+		if err != nil {
+			return errors.Wrap(err, "error merging --set values with the api model: %s")
+		}
+
+		log.Infoln(fmt.Sprintf("new api model file has been generated during merge: %s", dc.apimodelPath))
+	}
+
+	return nil
+}
+
+func (dc *deployCmd) loadAPIModel(cmd *cobra.Command, args []string) error {
+	var caCertificateBytes []byte
+	var caKeyBytes []byte
 	var err error
 
 	apiloader := &api.Apiloader{
@@ -142,13 +173,42 @@ func (dc *deployCmd) load(cmd *cobra.Command, args []string) error {
 	// do not validate when initially loading the apimodel, validation is done later after autofilling values
 	dc.containerService, dc.apiVersion, err = apiloader.LoadContainerServiceFromFile(dc.apimodelPath, false, false, nil)
 	if err != nil {
-		return fmt.Errorf(fmt.Sprintf("error parsing the api model: %s", err.Error()))
+		return errors.Wrap(err, "error parsing the api model")
+	}
+
+	if dc.outputDirectory == "" {
+		if dc.containerService.Properties.MasterProfile != nil {
+			dc.outputDirectory = path.Join("_output", dc.containerService.Properties.MasterProfile.DNSPrefix)
+		} else {
+			dc.outputDirectory = path.Join("_output", dc.containerService.Properties.HostedMasterProfile.DNSPrefix)
+		}
+	}
+
+	// consume dc.caCertificatePath and dc.caPrivateKeyPath
+	if (dc.caCertificatePath != "" && dc.caPrivateKeyPath == "") || (dc.caCertificatePath == "" && dc.caPrivateKeyPath != "") {
+		return errors.New("--ca-certificate-path and --ca-private-key-path must be specified together")
+	}
+
+	if dc.caCertificatePath != "" {
+		if caCertificateBytes, err = ioutil.ReadFile(dc.caCertificatePath); err != nil {
+			return errors.Wrap(err, "failed to read CA certificate file")
+		}
+		if caKeyBytes, err = ioutil.ReadFile(dc.caPrivateKeyPath); err != nil {
+			return errors.Wrap(err, "failed to read CA private key file")
+		}
+
+		prop := dc.containerService.Properties
+		if prop.CertificateProfile == nil {
+			prop.CertificateProfile = &api.CertificateProfile{}
+		}
+		prop.CertificateProfile.CaCertificate = string(caCertificateBytes)
+		prop.CertificateProfile.CaPrivateKey = string(caKeyBytes)
 	}
 
 	if dc.containerService.Location == "" {
 		dc.containerService.Location = dc.location
 	} else if dc.containerService.Location != dc.location {
-		return fmt.Errorf(fmt.Sprintf("--location does not match api model location"))
+		return errors.New("--location does not match api model location")
 	}
 
 	// For Hybrid cloud we need to write the cloud profile locally.
@@ -159,21 +219,16 @@ func (dc *deployCmd) load(cmd *cobra.Command, args []string) error {
 	}
 
 	if err = dc.authArgs.validateAuthArgs(); err != nil {
-		return fmt.Errorf("%s", err)
+		return err
 	}
 
 	dc.client, err = dc.authArgs.getClient()
 	if err != nil {
-		return fmt.Errorf("failed to get client: %s", err.Error())
+		return errors.Wrap(err, "failed to get client")
 	}
 
 	if err = autofillApimodel(dc); err != nil {
 		return err
-	}
-
-	_, _, err = validateApimodel(apiloader, dc.containerService, dc.apiVersion)
-	if err != nil {
-		return fmt.Errorf("Failed to validate the apimodel after populating values: %s", err)
 	}
 
 	dc.random = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -192,11 +247,11 @@ func autofillApimodel(dc *deployCmd) error {
 	}
 
 	if dc.dnsPrefix != "" && dc.containerService.Properties.MasterProfile.DNSPrefix != "" {
-		return fmt.Errorf("invalid configuration: the apimodel masterProfile.dnsPrefix and --dns-prefix were both specified")
+		return errors.New("invalid configuration: the apimodel masterProfile.dnsPrefix and --dns-prefix were both specified")
 	}
 	if dc.containerService.Properties.MasterProfile.DNSPrefix == "" {
 		if dc.dnsPrefix == "" {
-			return fmt.Errorf("apimodel: missing masterProfile.dnsPrefix and --dns-prefix was not specified")
+			return errors.New("apimodel: missing masterProfile.dnsPrefix and --dns-prefix was not specified")
 		}
 		log.Warnf("apimodel: missing masterProfile.dnsPrefix will use %q", dc.dnsPrefix)
 		dc.containerService.Properties.MasterProfile.DNSPrefix = dc.dnsPrefix
@@ -212,7 +267,7 @@ func autofillApimodel(dc *deployCmd) error {
 	}
 
 	if _, err := os.Stat(dc.outputDirectory); !dc.forceOverwrite && err == nil {
-		return fmt.Errorf("Output directory already exists and forceOverwrite flag is not set: %s", dc.outputDirectory)
+		return errors.Errorf("Output directory already exists and forceOverwrite flag is not set: %s", dc.outputDirectory)
 	}
 
 	if dc.resourceGroup == "" {
@@ -220,7 +275,7 @@ func autofillApimodel(dc *deployCmd) error {
 		log.Warnf("--resource-group was not specified. Using the DNS prefix from the apimodel as the resource group name: %s", dnsPrefix)
 		dc.resourceGroup = dnsPrefix
 		if dc.location == "" {
-			return fmt.Errorf("--resource-group was not specified. --location must be specified in case the resource group needs creation")
+			return errors.New("--resource-group was not specified. --location must be specified in case the resource group needs creation")
 		}
 	}
 
@@ -232,7 +287,7 @@ func autofillApimodel(dc *deployCmd) error {
 		}
 		_, publicKey, err := acsengine.CreateSaveSSH(dc.containerService.Properties.LinuxProfile.AdminUsername, dc.outputDirectory, translator)
 		if err != nil {
-			return fmt.Errorf("Failed to generate SSH Key: %s", err.Error())
+			return errors.Wrap(err, "Failed to generate SSH Key")
 		}
 
 		dc.containerService.Properties.LinuxProfile.SSH.PublicKeys = []api.PublicKey{{KeyData: publicKey}}
@@ -280,7 +335,7 @@ func autofillApimodel(dc *deployCmd) error {
 			}
 			applicationID, servicePrincipalObjectID, secret, err := dc.client.CreateApp(appName, appURL, replyURLs, requiredResourceAccess)
 			if err != nil {
-				return fmt.Errorf("apimodel invalid: ServicePrincipalProfile was empty, and we failed to create valid credentials: %q", err)
+				return errors.Wrap(err, "apimodel invalid: ServicePrincipalProfile was empty, and we failed to create valid credentials")
 			}
 			log.Warnf("created application with applicationID (%s) and servicePrincipalObjectID (%s).", applicationID, servicePrincipalObjectID)
 
@@ -288,7 +343,7 @@ func autofillApimodel(dc *deployCmd) error {
 
 			err = dc.client.CreateRoleAssignmentSimple(dc.resourceGroup, servicePrincipalObjectID)
 			if err != nil {
-				return fmt.Errorf("apimodel: could not create or assign ServicePrincipal: %q", err)
+				return errors.Wrap(err, "apimodel: could not create or assign ServicePrincipal")
 
 			}
 
@@ -307,9 +362,15 @@ func autofillApimodel(dc *deployCmd) error {
 	return nil
 }
 
-func validateApimodel(apiloader *api.Apiloader, containerService *api.ContainerService, apiVersion string) (*api.ContainerService, string, error) {
+func (dc *deployCmd) validateApimodel() (*api.ContainerService, string, error) {
+	apiloader := &api.Apiloader{
+		Translator: &i18n.Translator{
+			Locale: dc.locale,
+		},
+	}
+
 	// This isn't terribly elegant, but it's the easiest way to go for now w/o duplicating a bunch of code
-	rawVersionedAPIModel, err := apiloader.SerializeContainerService(containerService, apiVersion)
+	rawVersionedAPIModel, err := apiloader.SerializeContainerService(dc.containerService, dc.apiVersion)
 	if err != nil {
 		return nil, "", err
 	}
@@ -325,10 +386,10 @@ func (dc *deployCmd) run() error {
 
 	templateGenerator, err := acsengine.InitializeTemplateGenerator(ctx, dc.classicMode)
 	if err != nil {
-		log.Fatalln("failed to initialize template generator: %s", err.Error())
+		log.Fatalf("failed to initialize template generator: %s", err.Error())
 	}
 
-	template, parameters, certsgenerated, err := templateGenerator.GenerateTemplate(dc.containerService, acsengine.DefaultGeneratorCode, false, BuildTag)
+	template, parameters, certsgenerated, err := templateGenerator.GenerateTemplate(dc.containerService, acsengine.DefaultGeneratorCode, false, false, BuildTag)
 	if err != nil {
 		log.Fatalf("error generating template %s: %s", dc.apimodelPath, err.Error())
 		os.Exit(1)
@@ -378,6 +439,11 @@ func (dc *deployCmd) run() error {
 			log.Errorf(string(body))
 		}
 		log.Fatalln(err)
+	}
+
+	if dc.containerService.Properties.OrchestratorProfile.OrchestratorType == api.OpenShift {
+		// TODO: when the Azure client library is updated, read this from the template `masterFQDN` output
+		fmt.Printf("OpenShift web UI available at https://%s.%s.cloudapp.azure.com:8443/\n", dc.containerService.Properties.MasterProfile.DNSPrefix, dc.location)
 	}
 
 	return nil

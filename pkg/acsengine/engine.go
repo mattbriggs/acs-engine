@@ -22,6 +22,7 @@ import (
 	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Azure/acs-engine/pkg/helpers"
 	"github.com/ghodss/yaml"
+	"github.com/pkg/errors"
 )
 
 var commonTemplateFiles = []string{agentOutputs, agentParams, classicParams, masterOutputs, iaasOutputs, masterParams, windowsParams}
@@ -32,6 +33,7 @@ var swarmTemplateFiles = []string{swarmBaseFile, swarmParams, swarmAgentResource
 var swarmModeTemplateFiles = []string{swarmBaseFile, swarmParams, swarmAgentResourcesVMAS, swarmAgentVars, swarmAgentResourcesVMSS, swarmAgentResourcesClassic, swarmBaseFile, swarmMasterResources, swarmMasterVars, swarmWinAgentResourcesVMAS, swarmWinAgentResourcesVMSS}
 var openshiftTemplateFiles = append(
 	kubernetesTemplateFiles,
+	openshiftInfraResources,
 	openshiftNodeScript,
 	openshiftMasterScript,
 	openshift39NodeScript,
@@ -64,14 +66,14 @@ func GenerateClusterID(properties *api.Properties) string {
 // GenerateKubeConfig returns a JSON string representing the KubeConfig
 func GenerateKubeConfig(properties *api.Properties, location string) (string, error) {
 	if properties == nil {
-		return "", fmt.Errorf("Properties nil in GenerateKubeConfig")
+		return "", errors.New("Properties nil in GenerateKubeConfig")
 	}
 	if properties.CertificateProfile == nil {
-		return "", fmt.Errorf("CertificateProfile property may not be nil in GenerateKubeConfig")
+		return "", errors.New("CertificateProfile property may not be nil in GenerateKubeConfig")
 	}
 	b, err := Asset(kubeConfigJSON)
 	if err != nil {
-		return "", fmt.Errorf("error reading kube config template file %s: %s", kubeConfigJSON, err.Error())
+		return "", errors.Wrapf(err, "error reading kube config template file %s", kubeConfigJSON)
 	}
 	kubeconfig := string(b)
 	// variable replacement
@@ -84,7 +86,7 @@ func GenerateKubeConfig(properties *api.Properties, location string) (string, er
 			// more than 1 master, use the internal lb IP
 			firstMasterIP := net.ParseIP(properties.MasterProfile.FirstConsecutiveStaticIP).To4()
 			if firstMasterIP == nil {
-				return "", fmt.Errorf("MasterProfile.FirstConsecutiveStaticIP '%s' is an invalid IP address", properties.MasterProfile.FirstConsecutiveStaticIP)
+				return "", errors.Errorf("MasterProfile.FirstConsecutiveStaticIP '%s' is an invalid IP address", properties.MasterProfile.FirstConsecutiveStaticIP)
 			}
 			lbIP := net.IP{firstMasterIP[0], firstMasterIP[1], firstMasterIP[2], firstMasterIP[3] + byte(DefaultInternalLbStaticIPOffset)}
 			kubeconfig = strings.Replace(kubeconfig, "{{WrapAsVerbatim \"reference(concat('Microsoft.Network/publicIPAddresses/', variables('masterPublicIPAddressName'))).dnsSettings.fqdn\"}}", lbIP.String(), -1)
@@ -166,7 +168,7 @@ func FormatAzureProdFQDN(fqdnPrefix string, location string, properties *api.Pro
 }
 
 //getCloudSpecConfig returns the kubenernetes container images url configurations based on the deploy target environment
-//for example: if the target is the public azure, then the default container image url should be k8s-gcrio.azureedge.net/...
+//for example: if the target is the public azure, then the default container image url should be k8s.gcr.io/...
 //if the target is azure china, then the default container image should be mirror.azure.cn:5000/google_container/...
 func getCloudSpecConfig(location string, a *api.Properties) AzureEnvironmentSpecConfig {
 	switch getCloudTargetEnv(location, getCloudProfileName(a)) {
@@ -210,7 +212,7 @@ func getCloudTargetEnv(location string, cloudProfileName string) string {
 
 	loc := strings.ToLower(strings.Join(strings.Fields(location), ""))
 	switch {
-	case loc == "chinaeast" || loc == "chinanorth":
+	case loc == "chinaeast" || loc == "chinanorth" || loc == "chinaeast2" || loc == "chinanorth2":
 		return azureChinaCloud
 	case loc == "germanynortheast" || loc == "germanycentral":
 		return azureGermanCloud
@@ -298,7 +300,7 @@ func addSecret(m paramsMap, k string, v interface{}, encode bool) {
 func getStorageAccountType(sizeName string) (string, error) {
 	spl := strings.Split(sizeName, "_")
 	if len(spl) < 2 {
-		return "", fmt.Errorf("Invalid sizeName: %s", sizeName)
+		return "", errors.Errorf("Invalid sizeName: %s", sizeName)
 	}
 	capability := spl[1]
 	if strings.Contains(strings.ToLower(capability), "s") {
@@ -396,6 +398,18 @@ func getDCOSDefaultBootstrapInstallerURL(profile *api.OrchestratorProfile) strin
 	return ""
 }
 
+func getDCOSDefaultWindowsBootstrapInstallerURL(profile *api.OrchestratorProfile) string {
+	if profile.OrchestratorType == api.DCOS {
+		switch profile.OrchestratorVersion {
+		case common.DCOSVersion1Dot11Dot2:
+			return "https://dcos-mirror.azureedge.net/dcos-windows/1-11-2"
+		case common.DCOSVersion1Dot11Dot0:
+			return "https://dcos-mirror.azureedge.net/dcos-windows/1-11-0"
+		}
+	}
+	return ""
+}
+
 func getDCOSDefaultProviderPackageGUID(orchestratorType string, orchestratorVersion string, masterCount int) string {
 	if orchestratorType == api.DCOS {
 		switch orchestratorVersion {
@@ -473,7 +487,7 @@ func isCustomVNET(a []*api.AgentPoolProfile) bool {
 func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 
 	// latest version of the drivers. Later this parameter could be bubbled up so that users can choose specific driver versions.
-	dv := "390.30"
+	dv := "396.26"
 	dest := "/usr/local/nvidia"
 	nvidiaDockerVersion := "2.0.3"
 	dockerVersion := "1.13.1-1"
@@ -486,6 +500,7 @@ func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 - sh -c "echo \"blacklist nouveau\" >> /etc/modprobe.d/blacklist.conf"
 - update-initramfs -u
 - mkdir -p %s
+- wait_for_file 900 1 /var/log/azure/docker-install.complete
 - cd %s`, dest, dest)
 
 	/*
@@ -521,7 +536,7 @@ func getGPUDriversInstallScript(profile *api.AgentPoolProfile) string {
 - sh nvidia-drivers-%s --silent --accept-license --no-drm --utility-prefix="%s" --opengl-prefix="%s"
 - echo "%s" > /etc/ld.so.conf.d/nvidia.conf
 - sudo ldconfig
-- umount /usr/lib/x86_64-linux-gnu
+- umount -l /usr/lib/x86_64-linux-gnu
 - nvidia-modprobe -u -c0
 - %s/bin/nvidia-smi
 - sudo ldconfig
@@ -1216,7 +1231,7 @@ func validateProfileOptedForExtension(extensionName string, profileExtensions []
 func getLinkedTemplateTextForURL(rootURL, orchestrator, extensionName, version, query string) (string, error) {
 	supportsExtension, err := orchestratorSupportsExtension(rootURL, orchestrator, extensionName, version, query)
 	if !supportsExtension {
-		return "", fmt.Errorf("Extension not supported for orchestrator. Error: %s", err)
+		return "", errors.Wrap(err, "Extension not supported for orchestrator")
 	}
 
 	templateLinkBytes, err := getExtensionResource(rootURL, extensionName, version, "template-link.json", query)
@@ -1236,11 +1251,11 @@ func orchestratorSupportsExtension(rootURL, orchestrator, extensionName, version
 	var supportedOrchestrators []string
 	err = json.Unmarshal(orchestratorBytes, &supportedOrchestrators)
 	if err != nil {
-		return false, fmt.Errorf("Unable to parse supported-orchestrators.json for Extension %s Version %s", extensionName, version)
+		return false, errors.Errorf("Unable to parse supported-orchestrators.json for Extension %s Version %s", extensionName, version)
 	}
 
 	if !stringInSlice(orchestrator, supportedOrchestrators) {
-		return false, fmt.Errorf("Orchestrator: %s not in list of supported orchestrators for Extension: %s Version %s", orchestrator, extensionName, version)
+		return false, errors.Errorf("Orchestrator: %s not in list of supported orchestrators for Extension: %s Version %s", orchestrator, extensionName, version)
 	}
 
 	return true, nil
@@ -1251,18 +1266,18 @@ func getExtensionResource(rootURL, extensionName, version, fileName, query strin
 
 	res, err := http.Get(requestURL)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to GET extension resource for extension: %s with version %s with filename %s at URL: %s Error: %s", extensionName, version, fileName, requestURL, err)
+		return nil, errors.Wrapf(err, "Unable to GET extension resource for extension: %s with version %s with filename %s at URL: %s", extensionName, version, fileName, requestURL)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("Unable to GET extension resource for extension: %s with version %s with filename %s at URL: %s StatusCode: %s: Status: %s", extensionName, version, fileName, requestURL, strconv.Itoa(res.StatusCode), res.Status)
+		return nil, errors.Errorf("Unable to GET extension resource for extension: %s with version %s with filename %s at URL: %s StatusCode: %s: Status: %s", extensionName, version, fileName, requestURL, strconv.Itoa(res.StatusCode), res.Status)
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to GET extension resource for extension: %s with version %s  with filename %s at URL: %s Error: %s", extensionName, version, fileName, requestURL, err)
+		return nil, errors.Wrapf(err, "Unable to GET extension resource for extension: %s with version %s  with filename %s at URL: %s", extensionName, version, fileName, requestURL)
 	}
 
 	return body, nil

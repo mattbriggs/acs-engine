@@ -24,7 +24,14 @@ ERR_K8S_RUNNING_TIMEOUT=30 # Timeout waiting for k8s cluster to be healthy
 ERR_K8S_DOWNLOAD_TIMEOUT=31 # Timeout waiting for Kubernetes download(s)
 ERR_KUBECTL_NOT_FOUND=32 # kubectl client binary not found on local disk
 ERR_CNI_DOWNLOAD_TIMEOUT=41 # Timeout waiting for CNI download(s)
+ERR_MS_PROD_DEB_DOWNLOAD_TIMEOUT=42 # Timeout waiting for https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
+ERR_MS_PROD_DEB_PKG_ADD_FAIL=43 # Failed to add repo pkg file
+ERR_FLEXVOLUME_DOWNLOAD_TIMEOUT=44 # Failed to add repo pkg file
+ERR_MODPROBE_FAIL=49 # Unable to load a kernel module using modprobe
 ERR_OUTBOUND_CONN_FAIL=50 # Unable to establish outbound connection
+ERR_KATA_KEY_DOWNLOAD_TIMEOUT=60 # Timeout waiting to download kata repo key
+ERR_KATA_APT_KEY_TIMEOUT=61 # Timeout waiting for kata apt-key
+ERR_KATA_INSTALL_TIMEOUT=62 # Timeout waiting for kata install
 ERR_CUSTOM_SEARCH_DOMAINS_FAIL=80 # Unable to configure custom search domains
 ERR_APT_DAILY_TIMEOUT=98 # Timeout waiting for apt daily updates
 ERR_APT_UPDATE_TIMEOUT=99 # Timeout waiting for apt-get update to complete
@@ -69,7 +76,7 @@ fi
 
 function testOutboundConnection() {
     echo "TODO: find a way to verify outside connection in azure stack"
-    # retrycmd_if_failure 120 1 20 nc -v 8.8.8.8 53 || retrycmd_if_failure 120 1 20 nc -v 8.8.4.4 53 || exit $ERR_OUTBOUND_CONN_FAIL
+    #retrycmd_if_failure 20 1 3 nc -v 8.8.8.8 53 || retrycmd_if_failure 20 1 3 nc -v 8.8.4.4 53 || exit $ERR_OUTBOUND_CONN_FAIL
 }
 
 function waitForCloudInit() {
@@ -168,15 +175,31 @@ function installEtcd() {
 }
 
 function installDeps() {
+    retrycmd_if_failure_no_stats 20 1 5 curl -fsSL https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb > /tmp/packages-microsoft-prod.deb || exit $ERR_MS_PROD_DEB_DOWNLOAD_TIMEOUT
+    retrycmd_if_failure 60 5 10 dpkg -i /tmp/packages-microsoft-prod.deb || exit $ERR_MS_PROD_DEB_PKG_ADD_FAIL
     echo `date`,`hostname`, apt-get_update_begin>>/opt/m
-    apt_get_update || exit $ERR_APT_INSTALL_TIMEOUT
+    apt_get_update || exit $ERR_APT_UPDATE_TIMEOUT
     echo `date`,`hostname`, apt-get_update_end>>/opt/m
     # make sure walinuxagent doesn't get updated in the middle of running this script
     retrycmd_if_failure 20 5 30 apt-mark hold walinuxagent || exit $ERR_HOLD_WALINUXAGENT
     # See https://github.com/kubernetes/kubernetes/blob/master/build/debian-hyperkube-base/Dockerfile#L25-L44
-    apt_get_install 20 30 300 apt-transport-https ca-certificates iptables iproute2 socat util-linux mount ebtables ethtool init-system-helpers nfs-common ceph-common conntrack glusterfs-client ipset jq || exit $ERR_APT_INSTALL_TIMEOUT
+    apt_get_install 20 30 300 apt-transport-https ca-certificates iptables iproute2 ebtables socat util-linux mount ethtool init-system-helpers nfs-common ceph-common conntrack glusterfs-client ipset jq cgroup-lite git pigz xz-utils blobfuse fuse cifs-utils || exit $ERR_APT_INSTALL_TIMEOUT
     systemctlEnableAndStart rpcbind
     systemctlEnableAndStart rpc-statd
+}
+
+function installFlexVolDrivers() {
+    PLUGIN_DIR=/etc/kubernetes/volumeplugins
+    # install blobfuse flexvolume driver
+    BLOBFUSE_DIR=$PLUGIN_DIR/azure~blobfuse
+    mkdir -p $BLOBFUSE_DIR
+    retrycmd_if_failure_no_stats 20 1 30 curl -fsSL https://acs-mirror.azureedge.net/flexvol/blobfuse-v0.1 > $BLOBFUSE_DIR/blobfuse || exit $ERR_FLEXVOLUME_DOWNLOAD_TIMEOUT
+    chmod a+x $BLOBFUSE_DIR/blobfuse
+    # install smb flexvolume driver
+    SMB_DIR=$PLUGIN_DIR/microsoft.com~smb
+    mkdir -p $SMB_DIR
+    retrycmd_if_failure_no_stats 20 1 30 curl -fsSL https://acs-mirror.azureedge.net/flexvol/smb-v0.1 > $SMB_DIR/smb || exit $ERR_FLEXVOLUME_DOWNLOAD_TIMEOUT
+    chmod a+x $SMB_DIR/smb
 }
 
 function installDocker() {
@@ -185,9 +208,10 @@ function installDocker() {
     echo "deb ${DOCKER_REPO} ubuntu-xenial main" | sudo tee /etc/apt/sources.list.d/docker.list
     printf "Package: docker-engine\nPin: version ${DOCKER_ENGINE_VERSION}\nPin-Priority: 550\n" > /etc/apt/preferences.d/docker.pref
     apt_get_update || exit $ERR_APT_UPDATE_TIMEOUT
-    apt_get_install 20 30 120 ebtables docker-engine || exit $ERR_DOCKER_INSTALL_TIMEOUT
+    apt_get_install 20 30 120 docker-engine || exit $ERR_DOCKER_INSTALL_TIMEOUT
     echo "ExecStartPost=/sbin/iptables -P FORWARD ACCEPT" >> /etc/systemd/system/docker.service.d/exec_start.conf
     usermod -aG docker ${ADMINUSER}
+    touch /var/log/azure/docker-install.complete
 }
 
 function runAptDaily() {
@@ -264,6 +288,11 @@ function installCNI() {
     tar -xzf $CONTAINERNETWORKING_CNI_TGZ_TMP -C $CNI_BIN_DIR
     chown -R root:root $CNI_BIN_DIR
     chmod -R 755 $CNI_BIN_DIR
+    # Turn on br_netfilter (needed for the iptables rules to work on bridges)
+    # and permanently enable it
+    retrycmd_if_failure 30 6 10 modprobe br_netfilter || exit $ERR_MODPROBE_FAIL
+    # /etc/modules-load.d is the location used by systemd to load modules
+    echo -n "br_netfilter" > /etc/modules-load.d/br_netfilter.conf
 }
 
 function configAzureCNI() {
@@ -289,6 +318,24 @@ function configNetworkPlugin() {
 	elif [[ "${NETWORK_PLUGIN}" = "flannel" ]]; then
         installCNI
     fi
+}
+
+function installKataContainersRuntime() {
+    # Add Kata Containers repository key
+    echo "Adding Kata Containers repository key..."
+    KATA_RELEASE_KEY_TMP=/tmp/kata-containers-release.key
+    KATA_URL=http://download.opensuse.org/repositories/home:/katacontainers:/release/xUbuntu_16.04/Release.key
+    retrycmd_if_failure_no_stats 20 1 5 curl -fsSL $KATA_URL > $KATA_RELEASE_KEY_TMP || exit $ERR_KATA_KEY_DOWNLOAD_TIMEOUT
+    retrycmd_if_failure 10 5 10 apt-key add $KATA_RELEASE_KEY_TMP || exit $ERR_KATA_APT_KEY_TIMEOUT
+
+    # Add Kata Container repository
+    echo "Adding Kata Containers repository..."
+    echo 'deb http://download.opensuse.org/repositories/home:/katacontainers:/release/xUbuntu_16.04/ /' > /etc/apt/sources.list.d/kata-containers.list
+
+    # Install Kata Containers runtime
+    echo "Installing Kata Containers runtime..."
+    apt_get_update || exit $ERR_APT_UPDATE_TIMEOUT
+    apt_get_install 20 30 120 kata-runtime || exit $ERR_KATA_INSTALL_TIMEOUT
 }
 
 function installClearContainersRuntime() {
@@ -322,19 +369,6 @@ function installClearContainersRuntime() {
 	systemctlEnableAndStart cc-proxy
 }
 
-function installContainerd() {
-	CRI_CONTAINERD_VERSION="1.1.0"
-	CONTAINERD_DOWNLOAD_URL="https://storage.googleapis.com/cri-containerd-release/cri-containerd-${CRI_CONTAINERD_VERSION}.linux-amd64.tar.gz"
-
-    CONTAINERD_TGZ_TMP=/tmp/containerd.tar.gz
-    retrycmd_get_tarball 60 5 "$CONTAINERD_TGZ_TMP" "$CONTAINERD_DOWNLOAD_URL"
-	tar -xzf "$CONTAINERD_TGZ_TMP" -C /
-	rm -f "$CONTAINERD_TGZ_TMP"
-
-	echo "Successfully installed cri-containerd..."
-	setupContainerd
-}
-
 function setupContainerd() {
 	echo "Configuring cri-containerd..."
 
@@ -346,6 +380,8 @@ function setupContainerd() {
 	echo "runtime_type = 'io.containerd.runtime.v1.linux'" >> "$CRI_CONTAINERD_CONFIG"
 	if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]]; then
 		echo "runtime_engine = '/usr/bin/cc-runtime'" >> "$CRI_CONTAINERD_CONFIG"
+	elif [[ "$CONTAINER_RUNTIME" == "kata-containers" ]]; then
+		echo "runtime_engine = '/usr/bin/kata-runtime'" >> "$CRI_CONTAINERD_CONFIG"
 	else
 		echo "runtime_engine = '/usr/local/sbin/runc'" >> "$CRI_CONTAINERD_CONFIG"
 	fi
@@ -356,8 +392,24 @@ function setupContainerd() {
 	setKubeletOpts " --container-runtime=remote --runtime-request-timeout=15m --container-runtime-endpoint=unix:///run/containerd/containerd.sock"
 }
 
+function installContainerd() {
+	CRI_CONTAINERD_VERSION="1.1.0"
+	CONTAINERD_DOWNLOAD_URL="https://storage.googleapis.com/cri-containerd-release/cri-containerd-${CRI_CONTAINERD_VERSION}.linux-amd64.tar.gz"
+
+    CONTAINERD_TGZ_TMP=/tmp/containerd.tar.gz
+    retrycmd_get_tarball 60 5 "$CONTAINERD_TGZ_TMP" "$CONTAINERD_DOWNLOAD_URL"
+	tar -xzf "$CONTAINERD_TGZ_TMP" -C /
+	rm -f "$CONTAINERD_TGZ_TMP"
+	sed -i '/\[Service\]/a ExecStartPost=\/sbin\/iptables -P FORWARD ACCEPT' /etc/systemd/system/containerd.service
+
+	echo "Successfully installed cri-containerd..."
+	if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]] || [[ "$CONTAINER_RUNTIME" == "kata-containers" ]] || [[ "$CONTAINER_RUNTIME" == "containerd" ]]; then
+		setupContainerd
+	fi
+}
+
 function ensureContainerd() {
-	if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]] || [[ "$CONTAINER_RUNTIME" == "containerd" ]]; then
+	if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]] || [[ "$CONTAINER_RUNTIME" == "kata-containers" ]] || [[ "$CONTAINER_RUNTIME" == "containerd" ]]; then
 		# Enable and start cri-containerd service
 		# Make sure this is done after networking plugins are installed
 		echo "Enabling and starting cri-containerd service..."
@@ -378,16 +430,30 @@ function ensureKubelet() {
 }
 
 function extractHyperkube(){
-    retrycmd_if_failure 100 1 60 docker pull $HYPERKUBE_URL || exit $ERR_K8S_DOWNLOAD_TIMEOUT
-    systemctlEnableAndStart hyperkube-extract
+    TMP_DIR=$(mktemp -d)
+    retrycmd_if_failure 100 1 30 curl -sSL -o /usr/local/bin/img "https://acs-mirror.azureedge.net/img/img-linux-amd64-v0.4.6"
+    chmod +x /usr/local/bin/img
+    retrycmd_if_failure 75 1 60 img pull $HYPERKUBE_URL || exit $ERR_K8S_DOWNLOAD_TIMEOUT
+    path=$(find /tmp/img -name "hyperkube")
+
+    if [[ $OS == $COREOS_OS_NAME ]]; then
+        cp "$path" "/opt/kubelet"
+        cp "$path" "/opt/kubectl"
+        chmod a+x /opt/kubelet /opt/kubectl
+    else
+        cp "$path" "/usr/local/bin/kubelet"
+        cp "$path" "/usr/local/bin/kubectl"
+        chmod a+x /usr/local/bin/kubelet /usr/local/bin/kubectl
+    fi
+    rm -rf /tmp/hyperkube.tar "/tmp/img"
 }
 
 function ensureJournal(){
-    systemctlEnableAndStart systemd-journald
     echo "Storage=persistent" >> /etc/systemd/journald.conf
     echo "SystemMaxUse=1G" >> /etc/systemd/journald.conf
     echo "RuntimeMaxUse=1G" >> /etc/systemd/journald.conf
     echo "ForwardToSyslog=no" >> /etc/systemd/journald.conf
+    systemctlEnableAndStart systemd-journald
 }
 
 function ensurePodSecurityPolicy() {
@@ -518,10 +584,14 @@ if [[ $OS == $UBUNTU_OS_NAME ]]; then
 fi
 
 installDeps
-installDocker
-runAptDaily
+
+if [[ "$CONTAINER_RUNTIME" == "docker" ]]; then
+    installDocker
+    ensureDocker
+fi
+
 configureK8s
-ensureDocker
+
 configNetworkPlugin
 
 if [[ ! -z "${MASTER_NODE}" ]]; then
@@ -530,6 +600,10 @@ if [[ ! -z "${MASTER_NODE}" ]]; then
     echo `date`,`hostname`, configAddonsDone>>/opt/m
 fi
 
+# containerd needs to be installed before extractHyperkube
+# so runc is present.
+echo `date`,`hostname`, installContainerdStart>>/opt/m
+installContainerd
 echo `date`,`hostname`, extractHyperkubeStart>>/opt/m
 extractHyperkube
 echo `date`,`hostname`, extractHyperkubeDone>>/opt/m
@@ -540,10 +614,14 @@ if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]]; then
 		installClearContainersRuntime
 	fi
 fi
-if [[ "$CONTAINER_RUNTIME" == "clear-containers" ]] || [[ "$CONTAINER_RUNTIME" == "containerd" ]]; then
-	echo `date`,`hostname`, installContainerdStart>>/opt/m
-	installContainerd
+
+if [[ "$CONTAINER_RUNTIME" == "kata-containers" ]]; then
+	# Ensure we can nest virtualization
+	if grep -q vmx /proc/cpuinfo; then
+		installKataContainersRuntime
+	fi
 fi
+
 echo `date`,`hostname`, ensureContainerdStart>>/opt/m
 ensureContainerd
 
@@ -553,6 +631,7 @@ fi
 
 ensureKubelet
 ensureJournal
+#installFlexVolDrivers
 
 if [[ ! -z "${MASTER_NODE}" ]]; then
     writeKubeConfig
@@ -577,4 +656,6 @@ if $REBOOTREQUIRED; then
   # wait 1 minute to restart node, so that the custom script extension can complete
   echo 'reboot required, rebooting node in 1 minute'
   /bin/bash -c "shutdown -r 1 &"
+else
+  runAptDaily &
 fi

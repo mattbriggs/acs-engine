@@ -145,6 +145,7 @@ func getParameters(cs *api.ContainerService, isClassicMode bool, generatorCode s
 				dcosBootstrapURL = cloudSpecConfig.DCOSSpecConfig.DCOS110BootstrapDownloadURL
 			default:
 				dcosBootstrapURL = getDCOSDefaultBootstrapInstallerURL(properties.OrchestratorProfile)
+				dcosWindowsBootstrapURL = getDCOSDefaultWindowsBootstrapInstallerURL(properties.OrchestratorProfile)
 			}
 		}
 

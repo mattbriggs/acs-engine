@@ -290,6 +290,13 @@
       },
       "type": "string"
     },
+    "kubernetesDNSSidecarSpec": {
+      {{PopulateClassicModeDefaultValue "kubernetesDNSSidecarSpec"}}
+      "metadata": {
+        "description": "The container spec for k8s-dns-sidecar-amd64."
+      },
+      "type": "string"
+    },
     "kubernetesHeapsterSpec": {
       {{PopulateClassicModeDefaultValue "kubernetesHeapsterSpec"}}
       "metadata": {
@@ -308,6 +315,34 @@
       {{PopulateClassicModeDefaultValue "kubernetesNVIDIADevicePluginSpec"}}
       "metadata": {
         "description": "The container spec for NVIDIA Device Plugin."
+      },
+      "type": "string"
+    },
+    "kubernetesNVIDIADevicePluginCPURequests": {
+      {{PopulateClassicModeDefaultValue "kubernetesNVIDIADevicePluginCPURequests"}}
+      "metadata": {
+        "description": "NVIDIA Device Plugin CPU Requests"
+      },
+      "type": "string"
+    },
+    "kubernetesNVIDIADevicePluginMemoryRequests": {
+      {{PopulateClassicModeDefaultValue "kubernetesNVIDIADevicePluginMemoryRequests"}}
+      "metadata": {
+        "description": "NVIDIA Device Plugin Memory Requests"
+      },
+      "type": "string"
+    },
+    "kubernetesNVIDIADevicePluginCPULimit": {
+      {{PopulateClassicModeDefaultValue "kubernetesNVIDIADevicePluginCPULimit"}}
+      "metadata": {
+        "description": "NVIDIA Device Plugin CPU Limit"
+      },
+      "type": "string"
+    },
+    "kubernetesNVIDIADevicePluginMemoryLimit": {
+      {{PopulateClassicModeDefaultValue "kubernetesNVIDIADevicePluginMemoryLimit"}}
+      "metadata": {
+        "description": "NVIDIA Device Plugin Memory Limit"
       },
       "type": "string"
     },
@@ -430,6 +465,13 @@
       },
       "type": "string"
     },
+    "kubernetesClusterAutoscalerAzureCloud": {
+      {{PopulateClassicModeDefaultValue "kubernetesClusterAutoscalerAzureCloud"}}
+      "metadata": {
+        "description": "Name of the Azure cloud for the cluster autoscaler."
+      },
+      "type": "string"
+    },
     "kubernetesClusterAutoscalerCPULimit": {
       {{PopulateClassicModeDefaultValue "kubernetesClusterAutoscalerCPULimit"}}
       "metadata": {
@@ -483,6 +525,34 @@
       {{PopulateClassicModeDefaultValue "kubernetesClusterAutoscalerUseManagedIdentity"}}
       "metadata": {
         "description": "Managed identity for the cluster autoscaler addon"
+      },
+      "type": "string"
+    },
+    "kubernetesKeyVaultFlexVolumeInstallerCPURequests": {
+      {{PopulateClassicModeDefaultValue "kubernetesKeyVaultFlexVolumeInstallerCPURequests"}}
+      "metadata": {
+        "description": "Key Vault FlexVolume Installer CPU Requests"
+      },
+      "type": "string"
+    },
+    "kubernetesKeyVaultFlexVolumeInstallerMemoryRequests": {
+      {{PopulateClassicModeDefaultValue "kubernetesKeyVaultFlexVolumeInstallerMemoryRequests"}}
+      "metadata": {
+        "description": "Key Vault FlexVolume Installer Memory Requests"
+      },
+      "type": "string"
+    },
+    "kubernetesKeyVaultFlexVolumeInstallerCPULimit": {
+      {{PopulateClassicModeDefaultValue "kubernetesKeyVaultFlexVolumeInstallerCPULimit"}}
+      "metadata": {
+        "description": "Key Vault FlexVolume Installer CPU Limit"
+      },
+      "type": "string"
+    },
+    "kubernetesKeyVaultFlexVolumeInstallerMemoryLimit": {
+      {{PopulateClassicModeDefaultValue "kubernetesKeyVaultFlexVolumeInstallerMemoryLimit"}}
+      "metadata": {
+        "description": "Key Vault FlexVolume Installer Memory Limit"
       },
       "type": "string"
     },
@@ -652,11 +722,12 @@
     "containerRuntime": {
       "defaultValue": "{{.OrchestratorProfile.KubernetesConfig.ContainerRuntime}}",
       "metadata": {
-        "description": "The container runtime to use (docker|clear-containers|containerd)"
+        "description": "The container runtime to use (docker|clear-containers|kata-containers|containerd)"
       },
       "allowedValues": [
         "docker",
         "clear-containers",
+        "kata-containers",
         "containerd"
       ],
       "type": "string"
@@ -700,6 +771,69 @@
         "description": "Low Threshold for Image Garbage collection on each node."
       },
       "type": "int"
+    },
+    "omsAgentVersion": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS agent version for Container Monitoring."
+      },
+      "type": "string"
+    },
+    "omsAgentDockerProviderVersion": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "Docker provider version for Container Monitoring."
+      },
+      "type": "string"
+    },
+    "omsAgentImage": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS agent image for Container Monitoring."
+      },
+      "type": "string"
+    },
+    "omsAgentWorkspaceGuid": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS workspace guid"
+      },
+      "type": "string"
+    },
+    "omsAgentWorkspaceKey": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS workspace key"
+      },
+      "type": "string"
+    },
+    "kubernetesOMSAgentCPURequests": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS Agent CPU requests resource limit"
+      },
+      "type": "string"
+    },
+    "kubernetesOMSAgentMemoryRequests": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS Agent memory requests resource limit"
+      },
+      "type": "string"
+    },
+    "kubernetesOMSAgentCPULimit": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS Agent CPU limit resource limit"
+      },
+      "type": "string"
+    },
+    "kubernetesOMSAgentMemoryLimit": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "OMS Agent memory limit resource limit"
+      },
+      "type": "string"
     },
 {{ if not UseManagedIdentity }}
     "servicePrincipalClientId": {
@@ -850,7 +984,16 @@
          "description": "SKU for the key vault used by the cluster"
        }
      }
- {{end}}
+{{end}}
+{{if IsAzureCNI}}
+    ,"AzureCNINetworkMonitorImageURL": {
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure CNI networkmonitor Image URL"
+      },
+      "type": "string"
+    }
+{{end}}
 {{ if  IsAzureStackCloud }}
     ,"cloudprofileName": {
       {{PopulateClassicModeDefaultValue "cloudprofileName"}}

@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	log "github.com/sirupsen/logrus"
 )
 
 // EnvironmentFilepathName captures the name of the environment variable containing the path to the file
@@ -45,6 +44,7 @@ type Environment struct {
 	GalleryEndpoint              string `json:"galleryEndpoint"`
 	KeyVaultEndpoint             string `json:"keyVaultEndpoint"`
 	GraphEndpoint                string `json:"graphEndpoint"`
+	ServiceBusEndpoint           string `json:"serviceBusEndpoint"`
 	StorageEndpointSuffix        string `json:"storageEndpointSuffix"`
 	SQLDatabaseDNSSuffix         string `json:"sqlDatabaseDNSSuffix"`
 	TrafficManagerDNSSuffix      string `json:"trafficManagerDNSSuffix"`
@@ -67,11 +67,12 @@ var (
 		GalleryEndpoint:              "https://gallery.azure.com/",
 		KeyVaultEndpoint:             "https://vault.azure.net/",
 		GraphEndpoint:                "https://graph.windows.net/",
+		ServiceBusEndpoint:           "https://servicebus.windows.net/",
 		StorageEndpointSuffix:        "core.windows.net",
 		SQLDatabaseDNSSuffix:         "database.windows.net",
 		TrafficManagerDNSSuffix:      "trafficmanager.net",
 		KeyVaultDNSSuffix:            "vault.azure.net",
-		ServiceBusEndpointSuffix:     "servicebus.azure.com",
+		ServiceBusEndpointSuffix:     "servicebus.windows.net",
 		ServiceManagementVMDNSSuffix: "cloudapp.net",
 		ResourceManagerVMDNSSuffix:   "cloudapp.azure.com",
 		ContainerRegistryDNSSuffix:   "azurecr.io",
@@ -84,10 +85,11 @@ var (
 		PublishSettingsURL:           "https://manage.windowsazure.us/publishsettings/index",
 		ServiceManagementEndpoint:    "https://management.core.usgovcloudapi.net/",
 		ResourceManagerEndpoint:      "https://management.usgovcloudapi.net/",
-		ActiveDirectoryEndpoint:      "https://login.microsoftonline.com/",
+		ActiveDirectoryEndpoint:      "https://login.microsoftonline.us/",
 		GalleryEndpoint:              "https://gallery.usgovcloudapi.net/",
 		KeyVaultEndpoint:             "https://vault.usgovcloudapi.net/",
-		GraphEndpoint:                "https://graph.usgovcloudapi.net/",
+		GraphEndpoint:                "https://graph.windows.net/",
+		ServiceBusEndpoint:           "https://servicebus.usgovcloudapi.net/",
 		StorageEndpointSuffix:        "core.usgovcloudapi.net",
 		SQLDatabaseDNSSuffix:         "database.usgovcloudapi.net",
 		TrafficManagerDNSSuffix:      "usgovtrafficmanager.net",
@@ -109,11 +111,12 @@ var (
 		GalleryEndpoint:              "https://gallery.chinacloudapi.cn/",
 		KeyVaultEndpoint:             "https://vault.azure.cn/",
 		GraphEndpoint:                "https://graph.chinacloudapi.cn/",
+		ServiceBusEndpoint:           "https://servicebus.chinacloudapi.cn/",
 		StorageEndpointSuffix:        "core.chinacloudapi.cn",
 		SQLDatabaseDNSSuffix:         "database.chinacloudapi.cn",
 		TrafficManagerDNSSuffix:      "trafficmanager.cn",
 		KeyVaultDNSSuffix:            "vault.azure.cn",
-		ServiceBusEndpointSuffix:     "servicebus.chinacloudapi.net",
+		ServiceBusEndpointSuffix:     "servicebus.chinacloudapi.cn",
 		ServiceManagementVMDNSSuffix: "chinacloudapp.cn",
 		ResourceManagerVMDNSSuffix:   "cloudapp.azure.cn",
 		ContainerRegistryDNSSuffix:   "azurecr.io",
@@ -130,6 +133,7 @@ var (
 		GalleryEndpoint:              "https://gallery.cloudapi.de/",
 		KeyVaultEndpoint:             "https://vault.microsoftazure.de/",
 		GraphEndpoint:                "https://graph.cloudapi.de/",
+		ServiceBusEndpoint:           "https://servicebus.cloudapi.de/",
 		StorageEndpointSuffix:        "core.cloudapi.de",
 		SQLDatabaseDNSSuffix:         "database.cloudapi.de",
 		TrafficManagerDNSSuffix:      "azuretrafficmanager.de",
@@ -149,7 +153,6 @@ func EnvironmentFromName(name string) (Environment, error) {
 	// contributions to the providers. Once that is an option, the provider should be updated to
 	// directly call `EnvironmentFromFile`. Until then, we rely on dispatching Azure Stack environment creation
 	// from this method based on the name that is provided to us.
-	log.Infoln(fmt.Sprintf("EnvironmentFromName: AzureEnvironment is: %s", name))
 	if strings.EqualFold(name, "AZURESTACKCLOUD") {
 		return EnvironmentFromFile(os.Getenv(EnvironmentFilepathName))
 	}
@@ -167,19 +170,12 @@ func EnvironmentFromName(name string) (Environment, error) {
 // This function is particularly useful in the Hybrid Cloud model, where one must define their own
 // endpoints.
 func EnvironmentFromFile(location string) (unmarshaled Environment, err error) {
-
-    log.Infoln(fmt.Sprintf("EnvironmentFromFile: Reading file from location: %s", location))
 	fileContents, err := ioutil.ReadFile(location)
 	if err != nil {
-	    log.Infoln(fmt.Errorf("EnvironmentFromFile: Error parsing the enviroment jason file: %q", err.Error()))
 		return
 	}
 
 	err = json.Unmarshal(fileContents, &unmarshaled)
-	
-	if err != nil {
-		log.Infoln(fmt.Errorf("EnvironmentFromFile: Error parsing the enviroment jason file: %q", err.Error()))
-	}
 
 	return
 }

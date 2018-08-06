@@ -8,6 +8,7 @@ import (
 
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -47,6 +48,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(newUpgradeCmd())
 	rootCmd.AddCommand(newScaleCmd())
 	rootCmd.AddCommand(newDcosUpgradeCmd())
+	rootCmd.AddCommand(getCompletionCmd(rootCmd))
 
 	return rootCmd
 }
@@ -82,22 +84,22 @@ func (authArgs *authArgs) validateAuthArgs() error {
 
 	if authArgs.AuthMethod == "client_secret" {
 		if authArgs.ClientID.String() == "00000000-0000-0000-0000-000000000000" || authArgs.ClientSecret == "" {
-			return fmt.Errorf(`--client-id and --client-secret must be specified when --auth-method="client_secret"`)
+			return errors.New(`--client-id and --client-secret must be specified when --auth-method="client_secret"`)
 		}
 		// try parse the UUID
 	} else if authArgs.AuthMethod == "client_certificate" {
 		if authArgs.ClientID.String() == "00000000-0000-0000-0000-000000000000" || authArgs.CertificatePath == "" || authArgs.PrivateKeyPath == "" {
-			return fmt.Errorf(`--client-id and --certificate-path, and --private-key-path must be specified when --auth-method="client_certificate"`)
+			return errors.New(`--client-id and --certificate-path, and --private-key-path must be specified when --auth-method="client_certificate"`)
 		}
 	}
 
 	if authArgs.SubscriptionID.String() == "00000000-0000-0000-0000-000000000000" {
-		return fmt.Errorf("--subscription-id is required (and must be a valid UUID)")
+		return errors.New("--subscription-id is required (and must be a valid UUID)")
 	}
 	log.Infoln(fmt.Sprintf("AzureEnvironment: %s", authArgs.RawAzureEnvironment))
 	_, err := azure.EnvironmentFromName(authArgs.RawAzureEnvironment)
 	if err != nil {
-		return fmt.Errorf("failed to parse --azure-env as a valid target Azure cloud environment")
+		return errors.New("failed to parse --azure-env as a valid target Azure cloud environment")
 	}
 	return nil
 }
@@ -119,7 +121,7 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	case "client_certificate":
 		client, err = armhelpers.NewAzureClientWithClientCertificateFile(env, authArgs.SubscriptionID.String(), authArgs.ClientID.String(), authArgs.CertificatePath, authArgs.PrivateKeyPath)
 	default:
-		return nil, fmt.Errorf("--auth-method: ERROR: method unsupported. method=%q", authArgs.AuthMethod)
+		return nil, errors.Errorf("--auth-method: ERROR: method unsupported. method=%q", authArgs.AuthMethod)
 	}
 	if err != nil {
 		return nil, err
@@ -178,4 +180,24 @@ func writeCloudProfile(dir string, file string, dc *deployCmd) error {
 	os.Setenv("AZURE_ENVIRONMENT_FILEPATH", path)
 
 	return nil
+}
+
+func getCompletionCmd(root *cobra.Command) *cobra.Command {
+	var completionCmd = &cobra.Command{
+		Use:   "completion",
+		Short: "Generates bash completion scripts",
+		Long: `To load completion run
+
+	source <(acs-engine completion)
+
+	To configure your bash shell to load completions for each session, add this to your bashrc
+
+	# ~/.bashrc or ~/.profile
+	source <(acs-engine completion)
+	`,
+		Run: func(cmd *cobra.Command, args []string) {
+			root.GenBashCompletion(os.Stdout)
+		},
+	}
+	return completionCmd
 }

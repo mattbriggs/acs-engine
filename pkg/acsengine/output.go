@@ -11,6 +11,7 @@ import (
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/i18n"
 	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 // ArtifactWriter represents the object that writes artifacts
@@ -90,7 +91,50 @@ func (w *ArtifactWriter) WriteTLSArtifacts(containerService *api.ContainerServic
 			if e := f.SaveFileString(artifactsDir, "ca.crt", properties.CertificateProfile.CaCertificate); e != nil {
 				return e
 			}
-			if e := f.SaveFileString(artifactsDir, "apiserver.key", properties.CertificateProfile.APIServerPrivateKey); e != nil {
+		}
+
+		if e := f.SaveFileString(artifactsDir, "ca.key", properties.CertificateProfile.CaPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "ca.crt", properties.CertificateProfile.CaCertificate); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "apiserver.key", properties.CertificateProfile.APIServerPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "apiserver.crt", properties.CertificateProfile.APIServerCertificate); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "client.key", properties.CertificateProfile.ClientPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "client.crt", properties.CertificateProfile.ClientCertificate); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "kubectlClient.key", properties.CertificateProfile.KubeConfigPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "kubectlClient.crt", properties.CertificateProfile.KubeConfigCertificate); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "etcdserver.key", properties.CertificateProfile.EtcdServerPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "etcdserver.crt", properties.CertificateProfile.EtcdServerCertificate); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "etcdclient.key", properties.CertificateProfile.EtcdClientPrivateKey); e != nil {
+			return e
+		}
+		if e := f.SaveFileString(artifactsDir, "etcdclient.crt", properties.CertificateProfile.EtcdClientCertificate); e != nil {
+			return e
+		}
+		for i := 0; i < properties.MasterProfile.Count; i++ {
+			if len(properties.CertificateProfile.EtcdPeerPrivateKeys) <= i || len(properties.CertificateProfile.EtcdPeerCertificates) <= i {
+				return errors.New("missing etcd peer certificate/key pair")
+			}
+			k := "etcdpeer" + strconv.Itoa(i) + ".key"
+			if e := f.SaveFileString(artifactsDir, k, properties.CertificateProfile.EtcdPeerPrivateKeys[i]); e != nil {
 				return e
 			}
 			if e := f.SaveFileString(artifactsDir, "apiserver.crt", properties.CertificateProfile.APIServerCertificate); e != nil {

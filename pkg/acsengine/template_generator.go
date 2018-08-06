@@ -3,7 +3,6 @@ package acsengine
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -15,7 +14,8 @@ import (
 	"github.com/Azure/acs-engine/pkg/api/common"
 	"github.com/Azure/acs-engine/pkg/helpers"
 	"github.com/Azure/acs-engine/pkg/i18n"
-	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // TemplateGenerator represents the object that performs the template generation.
@@ -39,7 +39,7 @@ func InitializeTemplateGenerator(ctx Context, classicMode bool) (*TemplateGenera
 }
 
 // GenerateTemplate generates the template from the API Model
-func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerService, generatorCode string, isUpgrade bool, acsengineVersion string) (templateRaw string, parametersRaw string, certsGenerated bool, err error) {
+func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerService, generatorCode string, isUpgrade, isScale bool, acsengineVersion string) (templateRaw string, parametersRaw string, certsGenerated bool, err error) {
 	// named return values are used in order to set err in case of a panic
 	templateRaw = ""
 	parametersRaw = ""
@@ -54,7 +54,7 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 	defer func() {
 		properties.OrchestratorProfile.OrchestratorVersion = orchVersion
 	}()
-	if certsGenerated, err = setPropertiesDefaults(containerService, isUpgrade); err != nil {
+	if certsGenerated, err = setPropertiesDefaults(containerService, isUpgrade, isScale); err != nil {
 		return templateRaw, parametersRaw, certsGenerated, err
 	}
 
@@ -80,7 +80,7 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 	defer func() {
 		if r := recover(); r != nil {
 			s := debug.Stack()
-			err = fmt.Errorf("%v - %s", r, s)
+			err = errors.Errorf("%v - %s", r, s)
 
 			// invalidate the template and the parameters
 			templateRaw = ""
@@ -89,7 +89,7 @@ func (t *TemplateGenerator) GenerateTemplate(containerService *api.ContainerServ
 	}()
 
 	if !validateDistro(containerService) {
-		return templateRaw, parametersRaw, certsGenerated, fmt.Errorf("Invalid distro")
+		return templateRaw, parametersRaw, certsGenerated, errors.New("Invalid distro")
 	}
 
 	var b bytes.Buffer
@@ -180,17 +180,7 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			return cs.Properties.OrchestratorProfile.IsKubernetes() && common.IsKubernetesVersionGe(cs.Properties.OrchestratorProfile.OrchestratorVersion, version)
 		},
 		"IsKubernetesVersionLt": func(version string) bool {
-			orchestratorVersion, _ := semver.NewVersion(cs.Properties.OrchestratorProfile.OrchestratorVersion)
-			constraint, _ := semver.NewConstraint("<" + version)
-			return cs.Properties.OrchestratorProfile.IsKubernetes() && constraint.Check(orchestratorVersion)
-		},
-		"IsKubernetesVersionTilde": func(version string) bool {
-			// examples include
-			// ~2.3 is equivalent to >= 2.3, < 2.4
-			// ~1.2.x is equivalent to >= 1.2.0, < 1.3.0
-			orchestratorVersion, _ := semver.NewVersion(cs.Properties.OrchestratorProfile.OrchestratorVersion)
-			constraint, _ := semver.NewConstraint("~" + version)
-			return cs.Properties.OrchestratorProfile.IsKubernetes() && constraint.Check(orchestratorVersion)
+			return cs.Properties.OrchestratorProfile.IsKubernetes() && !common.IsKubernetesVersionGe(cs.Properties.OrchestratorProfile.OrchestratorVersion, version)
 		},
 		"GetMasterKubernetesLabels": func(rg string) string {
 			var buf bytes.Buffer
@@ -204,6 +194,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			if profile.StorageProfile == api.ManagedDisks {
 				storagetier, _ := getStorageAccountType(profile.VMSize)
 				buf.WriteString(fmt.Sprintf(",storageprofile=managed,storagetier=%s", storagetier))
+			}
+			if isNSeriesSKU(profile) {
+				accelerator := "nvidia"
+				buf.WriteString(fmt.Sprintf(",accelerator=%s", accelerator))
 			}
 			buf.WriteString(fmt.Sprintf(",kubernetes.azure.com/cluster=%s", rg))
 			for k, v := range profile.CustomNodeLabels {
@@ -297,6 +291,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"UseManagedIdentity": func() bool {
 			return cs.Properties.OrchestratorProfile.KubernetesConfig.UseManagedIdentity
 		},
+		"UseAksExtension": func() bool {
+			cloudSpecConfig := getCloudSpecConfig(cs.Location)
+			return cloudSpecConfig.CloudName == azurePublicCloud
+		},
 		"UseInstanceMetadata": func() bool {
 			return helpers.IsTrueBoolPointer(cs.Properties.OrchestratorProfile.KubernetesConfig.UseInstanceMetadata)
 		},
@@ -326,6 +324,9 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		},
 		"HasBootstrap": func() bool {
 			return cs.Properties.OrchestratorProfile.DcosConfig != nil && cs.Properties.OrchestratorProfile.DcosConfig.BootstrapProfile != nil
+		},
+		"HasBootstrapPublicIP": func() bool {
+			return false
 		},
 		"IsHostedBootstrap": func() bool {
 			return false
@@ -499,6 +500,15 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 				"MASTER_ADDONS_CONFIG_PLACEHOLDER",
 				profile.OrchestratorProfile.OrchestratorVersion)
 
+			// add custom files
+			customFilesReader, err := customfilesIntoReaders(masterCustomFiles(profile))
+			if err != nil {
+				log.Fatalf("Could not read custom files: %s", err.Error())
+			}
+			str = substituteConfigStringCustomFiles(str,
+				customFilesReader,
+				"MASTER_CUSTOM_FILES_PLACEHOLDER")
+
 			// return the custom data
 			return fmt.Sprintf("\"customData\": \"[base64(concat('%s'))]\",", str)
 		},
@@ -603,6 +613,11 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 			if e != nil {
 				return ""
 			}
+			preprovisionCmd := ""
+			if profile.PreprovisionExtension != nil {
+				preprovisionCmd = makeAgentExtensionScriptCommands(cs, profile)
+			}
+			str = strings.Replace(str, "PREPROVISION_EXTENSION", escapeSingleLine(strings.TrimSpace(preprovisionCmd)), -1)
 			return fmt.Sprintf("\"customData\": \"[base64(concat('%s'))]\",", str)
 		},
 		"GetMasterSwarmModeCustomData": func() string {
@@ -752,8 +767,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 				rC := getAddonContainersIndexByName(reschedulerAddon.Containers, DefaultReschedulerAddonName)
 				metricsServerAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultMetricsServerAddonName)
 				mC := getAddonContainersIndexByName(metricsServerAddon.Containers, DefaultMetricsServerAddonName)
-				nvidiaDevicePluginAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultNVIDIADevicePluginAddonName)
-				nC := getAddonContainersIndexByName(nvidiaDevicePluginAddon.Containers, DefaultNVIDIADevicePluginAddonName)
+				nvidiaDevicePluginAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, NVIDIADevicePluginAddonName)
+				nC := getAddonContainersIndexByName(nvidiaDevicePluginAddon.Containers, NVIDIADevicePluginAddonName)
+				kvFlexVolumeAddon := getAddonByName(cs.Properties.OrchestratorProfile.KubernetesConfig.Addons, DefaultKeyVaultFlexVolumeAddonName)
+				kC := getAddonContainersIndexByName(kvFlexVolumeAddon.Containers, DefaultKeyVaultFlexVolumeAddonName)
 				switch attr {
 				case "kubernetesHyperkubeSpec":
 					val = cs.Properties.OrchestratorProfile.KubernetesConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["hyperkube"]
@@ -805,6 +822,8 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 					val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["dnsmasq"]
 				case "kubernetesExecHealthzSpec":
 					val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["exechealthz"]
+				case "kubernetesDNSSidecarSpec":
+					val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["k8s-dns-sidecar"]
 				case "kubernetesHeapsterSpec":
 					val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion]["heapster"]
 				case "kubernetesACIConnectorSpec":
@@ -871,6 +890,12 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 							val = cloudSpecConfig.KubernetesSpecConfig.KubernetesImageBase + KubeConfigs[k8sVersion][DefaultClusterAutoscalerAddonName]
 						}
 					}
+				case "kubernetesClusterAutoscalerAzureCloud":
+					if aS > -1 {
+						val = cloudSpecConfig.CloudName
+					} else {
+						val = ""
+					}
 				case "kubernetesClusterAutoscalerCPURequests":
 					if aS > -1 {
 						val = clusterAutoscalerAddon.Containers[aC].CPURequests
@@ -902,6 +927,30 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 						} else {
 							val = "false"
 						}
+					}
+				case "kubernetesKeyVaultFlexVolumeInstallerCPURequests":
+					if kC > -1 {
+						val = kvFlexVolumeAddon.Containers[kC].CPURequests
+					} else {
+						val = ""
+					}
+				case "kubernetesKeyVaultFlexVolumeInstallerMemoryRequests":
+					if kC > -1 {
+						val = kvFlexVolumeAddon.Containers[kC].MemoryRequests
+					} else {
+						val = ""
+					}
+				case "kubernetesKeyVaultFlexVolumeInstallerCPULimit":
+					if kC > -1 {
+						val = kvFlexVolumeAddon.Containers[kC].CPULimits
+					} else {
+						val = ""
+					}
+				case "kubernetesKeyVaultFlexVolumeInstallerMemoryLimit":
+					if kC > -1 {
+						val = kvFlexVolumeAddon.Containers[kC].MemoryLimits
+					} else {
+						val = ""
 					}
 				case "kubernetesTillerSpec":
 					if tC > -1 {
@@ -959,7 +1008,31 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 							val = nvidiaDevicePluginAddon.Containers[nC].Image
 						}
 					} else {
-						val = cloudSpecConfig.KubernetesSpecConfig.NVIDIAImageBase + KubeConfigs[k8sVersion][DefaultNVIDIADevicePluginAddonName]
+						val = cloudSpecConfig.KubernetesSpecConfig.NVIDIAImageBase + KubeConfigs[k8sVersion][NVIDIADevicePluginAddonName]
+					}
+				case "kubernetesNVIDIADevicePluginCPURequests":
+					if nC > -1 {
+						val = nvidiaDevicePluginAddon.Containers[aC].CPURequests
+					} else {
+						val = ""
+					}
+				case "kubernetesNVIDIADevicePluginMemoryRequests":
+					if nC > -1 {
+						val = nvidiaDevicePluginAddon.Containers[aC].MemoryRequests
+					} else {
+						val = ""
+					}
+				case "kubernetesNVIDIADevicePluginCPULimit":
+					if nC > -1 {
+						val = nvidiaDevicePluginAddon.Containers[aC].CPULimits
+					} else {
+						val = ""
+					}
+				case "kubernetesNVIDIADevicePluginMemoryLimit":
+					if nC > -1 {
+						val = nvidiaDevicePluginAddon.Containers[aC].MemoryLimits
+					} else {
+						val = ""
 					}
 				case "kubernetesReschedulerSpec":
 					if rC > -1 {
@@ -1082,7 +1155,12 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"OpenShiftGetMasterSh": func() (string, error) {
 			masterShAsset := getOpenshiftMasterShAsset(cs.Properties.OrchestratorProfile.OrchestratorVersion)
 			tb := MustAsset(masterShAsset)
-			t, err := template.New("master").Parse(string(tb))
+			t, err := template.New("master").Funcs(template.FuncMap{
+				"quote": strconv.Quote,
+				"shellQuote": func(s string) string {
+					return `'` + strings.Replace(s, `'`, `'\''`, -1) + `'`
+				},
+			}).Parse(string(tb))
 			if err != nil {
 				return "", err
 			}
@@ -1105,7 +1183,12 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		"OpenShiftGetNodeSh": func(profile *api.AgentPoolProfile) (string, error) {
 			nodeShAsset := getOpenshiftNodeShAsset(cs.Properties.OrchestratorProfile.OrchestratorVersion)
 			tb := MustAsset(nodeShAsset)
-			t, err := template.New("node").Parse(string(tb))
+			t, err := template.New("node").Funcs(template.FuncMap{
+				"quote": strconv.Quote,
+				"shellQuote": func(s string) string {
+					return `'` + strings.Replace(s, `'`, `'\''`, -1) + `'`
+				},
+			}).Parse(string(tb))
 			if err != nil {
 				return "", err
 			}
@@ -1146,6 +1229,10 @@ func (t *TemplateGenerator) getTemplateFuncMap(cs *api.ContainerService) templat
 		},
 		"IsCustomVNET": func() bool {
 			return isCustomVNET(cs.Properties.AgentPoolProfiles)
+		},
+		"quote": strconv.Quote,
+		"shellQuote": func(s string) string {
+			return `'` + strings.Replace(s, `'`, `'\''`, -1) + `'`
 		},
 	}
 }

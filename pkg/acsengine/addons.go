@@ -73,6 +73,11 @@ func kubernetesAddonSettingsInit(profile *api.Properties) []kubernetesFeatureSet
 			profile.OrchestratorProfile.KubernetesConfig.IsReschedulerEnabled(),
 		},
 		{
+			"kubernetesmasteraddons-azure-npm-daemonset.yaml",
+			"azure-npm-daemonset.yaml",
+			profile.OrchestratorProfile.KubernetesConfig.NetworkPolicy == NetworkPolicyAzure && profile.OrchestratorProfile.KubernetesConfig.NetworkPlugin == NetworkPluginAzure,
+		},
+		{
 			"kubernetesmasteraddons-calico-daemonset.yaml",
 			"calico-daemonset.yaml",
 			profile.OrchestratorProfile.KubernetesConfig.NetworkPolicy == NetworkPolicyCalico,
@@ -102,6 +107,26 @@ func kubernetesAddonSettingsInit(profile *api.Properties) []kubernetesFeatureSet
 			"kube-metrics-server-deployment.yaml",
 			profile.OrchestratorProfile.IsMetricsServerEnabled(),
 		},
+		{
+			"kubernetesmasteraddons-omsagent-daemonset.yaml",
+			"omsagent-daemonset.yaml",
+			profile.OrchestratorProfile.IsContainerMonitoringEnabled(),
+		},
+		{
+			"azure-cni-networkmonitor.yaml",
+			"azure-cni-networkmonitor.yaml",
+			profile.OrchestratorProfile.IsAzureCNI(),
+		},
+		{
+			"kubernetesmaster-audit-policy.yaml",
+			"audit-policy.yaml",
+			common.IsKubernetesVersionGe(profile.OrchestratorProfile.OrchestratorVersion, "1.8.0"),
+		},
+		{
+			"kubernetesmasteraddons-keyvault-flexvolume-installer.yaml",
+			"keyvault-flexvolume-installer.yaml",
+			profile.OrchestratorProfile.KubernetesConfig.IsKeyVaultFlexVolumeEnabled(),
+		},
 	}
 }
 
@@ -126,11 +151,6 @@ func kubernetesManifestSettingsInit(profile *api.Properties) []kubernetesFeature
 			"kubernetesmaster-pod-security-policy.yaml",
 			"pod-security-policy.yaml",
 			helpers.IsTrueBoolPointer(profile.OrchestratorProfile.KubernetesConfig.EnablePodSecurityPolicy),
-		},
-		{
-			"kubernetesmaster-audit-policy.yaml",
-			"audit-policy.yaml",
-			common.IsKubernetesVersionGe(profile.OrchestratorProfile.OrchestratorVersion, "1.8.0"),
 		},
 		{
 			"kubernetesmaster-kube-apiserver.yaml",

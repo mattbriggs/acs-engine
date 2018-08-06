@@ -53,6 +53,7 @@
               "name": "[variables('{{.Name}}VMNamePrefix')]",
               "properties": {
                 "primary": true,
+                "enableAcceleratedNetworking" : "{{.AcceleratedNetworkingEnabled}}",
                 {{if .IsCustomVNET}}
                 "networkSecurityGroup": {
                   "id": "[variables('nsgID')]"
@@ -145,6 +146,19 @@
                 }
               }
             }
+            {{if UseAksExtension}}
+            ,{
+              "name": "[concat(variables('{{.Name}}VMNamePrefix'), '-computeAksLinuxBilling')]",
+              "location": "[variables('location')]",
+              "properties": {
+                "publisher": "Microsoft.AKS",
+                "type": "Compute.AKS-Engine.Linux.Billing",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {}
+              }
+            }
+            {{end}}
             {{if UseManagedIdentity}}
             ,{
               "name": "managedIdentityExtension",

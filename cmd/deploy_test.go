@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/armhelpers"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 )
@@ -111,7 +112,7 @@ func TestValidate(t *testing.T) {
 				caPrivateKeyPath:  "test",
 			},
 			args:        []string{},
-			expectedErr: fmt.Errorf("--api-model was not supplied, nor was one specified as a positional argument"),
+			expectedErr: errors.New("--api-model was not supplied, nor was one specified as a positional argument"),
 		},
 		{
 			dc: &deployCmd{
@@ -122,7 +123,7 @@ func TestValidate(t *testing.T) {
 				caPrivateKeyPath:  "test",
 			},
 			args:        []string{"wrong/path"},
-			expectedErr: fmt.Errorf("specified api model does not exist (wrong/path)"),
+			expectedErr: errors.New("specified api model does not exist (wrong/path)"),
 		},
 		{
 			dc: &deployCmd{
@@ -133,7 +134,7 @@ func TestValidate(t *testing.T) {
 				caPrivateKeyPath:  "test",
 			},
 			args:        []string{"test/apimodel.json", "some_random_stuff"},
-			expectedErr: fmt.Errorf("too many arguments were provided to 'deploy'"),
+			expectedErr: errors.New("too many arguments were provided to 'deploy'"),
 		},
 		{
 			dc: &deployCmd{
@@ -144,7 +145,7 @@ func TestValidate(t *testing.T) {
 				caPrivateKeyPath:  "test",
 			},
 			args:        []string{apimodelPath},
-			expectedErr: fmt.Errorf("--location must be specified"),
+			expectedErr: errors.New("--location must be specified"),
 		},
 		{
 			dc: &deployCmd{
@@ -173,7 +174,7 @@ func TestValidate(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		err = c.dc.validate(r, c.args)
+		err = c.dc.validateArgs(r, c.args)
 		if err != nil && c.expectedErr != nil {
 			if err.Error() != c.expectedErr.Error() {
 				t.Fatalf("expected validate deploy command to return error %s, but instead got %s", c.expectedErr.Error(), err.Error())
@@ -447,7 +448,7 @@ func testAutodeployCredentialHandling(t *testing.T, useManagedIdentity bool, cli
 	// cleanup, since auto-populations creates dirs and saves the SSH private key that it might create
 	defer os.RemoveAll(deployCmd.outputDirectory)
 
-	cs, _, err = validateApimodel(apiloader, cs, ver)
+	cs, _, err = deployCmd.validateApimodel()
 	if err != nil {
 		t.Fatalf("unexpected error validating apimodel after populating defaults: %s", err)
 	}
@@ -462,5 +463,64 @@ func testAutodeployCredentialHandling(t *testing.T, useManagedIdentity bool, cli
 			cs.Properties.ServicePrincipalProfile.ClientID == "" || cs.Properties.ServicePrincipalProfile.Secret == "" {
 			t.Fatalf("Credentials were missing even though MSI was not active.")
 		}
+	}
+}
+
+func testDeployCmdMergeAPIModel(t *testing.T) {
+	d := &deployCmd{}
+	d.apimodelPath = "../pkg/acsengine/testdata/simple/kubernetes.json"
+	err := d.mergeAPIModel()
+	if err != nil {
+		t.Fatalf("unexpected error calling mergeAPIModel with no --set flag defined: %s", err.Error())
+	}
+
+	d = &deployCmd{}
+	d.apimodelPath = "../pkg/acsengine/testdata/simple/kubernetes.json"
+	d.set = []string{"masterProfile.count=3,linuxProfile.adminUsername=testuser"}
+	err = d.mergeAPIModel()
+	if err != nil {
+		t.Fatalf("unexpected error calling mergeAPIModel with one --set flag: %s", err.Error())
+	}
+
+	d = &deployCmd{}
+	d.apimodelPath = "../pkg/acsengine/testdata/simple/kubernetes.json"
+	d.set = []string{"masterProfile.count=3", "linuxProfile.adminUsername=testuser"}
+	err = d.mergeAPIModel()
+	if err != nil {
+		t.Fatalf("unexpected error calling mergeAPIModel with multiple --set flags: %s", err.Error())
+	}
+
+	d = &deployCmd{}
+	d.apimodelPath = "../pkg/acsengine/testdata/simple/kubernetes.json"
+	d.set = []string{"agentPoolProfiles[0].count=1"}
+	err = d.mergeAPIModel()
+	if err != nil {
+		t.Fatalf("unexpected error calling mergeAPIModel with one --set flag to override an array property: %s", err.Error())
+	}
+}
+
+func testDeployCmdMLoadAPIModel(t *testing.T) {
+	d := &deployCmd{}
+	r := &cobra.Command{}
+	f := r.Flags()
+
+	addAuthFlags(&d.authArgs, f)
+
+	fakeRawSubscriptionID := "6dc93fae-9a76-421f-bbe5-cc6460ea81cb"
+	fakeSubscriptionID, err := uuid.FromString(fakeRawSubscriptionID)
+	if err != nil {
+		t.Fatalf("Invalid SubscriptionId in Test: %s", err)
+	}
+
+	d.apimodelPath = "../pkg/acsengine/testdata/simple/kubernetes.json"
+	d.set = []string{"agentPoolProfiles[0].count=1"}
+	d.SubscriptionID = fakeSubscriptionID
+	d.rawSubscriptionID = fakeRawSubscriptionID
+
+	d.validateArgs(r, []string{"../pkg/acsengine/testdata/simple/kubernetes.json"})
+	d.mergeAPIModel()
+	err = d.loadAPIModel(r, []string{"../pkg/acsengine/testdata/simple/kubernetes.json"})
+	if err != nil {
+		t.Fatalf("unexpected error loading api model: %s", err.Error())
 	}
 }
