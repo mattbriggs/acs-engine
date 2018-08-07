@@ -71,7 +71,7 @@ func (client ProvidersClient) GetPreparer(resourceProviderNamespace string, expa
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -141,7 +141,7 @@ func (client ProvidersClient) ListPreparer(top *int32, expand string) (*http.Req
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -282,7 +282,7 @@ func (client ProvidersClient) RegisterPreparer(resourceProviderNamespace string)
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -348,7 +348,7 @@ func (client ProvidersClient) UnregisterPreparer(resourceProviderNamespace strin
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

@@ -1,11 +1,11 @@
-// Package authorization implements the Azure ARM Authorization service API version 2015-07-01.
+// Package authorization implements the Azure ARM Authorization service API version 2016-09-01.
 //
 // Role based access control provides you a way to apply granular level policy administration down to individual
 // resources or resource groups. These operations enable you to manage role definitions and role assignments. A role
 // definition describes the set of actions that can be performed on resources. A role assignment grants access to Azure
 // Active Directory users.
 //
-// Deprecated: Please instead use github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization
+// Deprecated: Please instead use github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2016-09-01/authorization
 package authorization
 
 // Copyright (c) Microsoft and contributors.  All rights reserved.

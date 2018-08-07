@@ -86,7 +86,7 @@ func (client GroupClient) CheckExistencePreparer(resourceGroupName string, resou
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -151,7 +151,7 @@ func (client GroupClient) CheckExistenceByIDPreparer(resourceID string) (*http.R
 		"resourceId": resourceID,
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -251,7 +251,7 @@ func (client GroupClient) CreateOrUpdatePreparer(resourceGroupName string, resou
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -345,7 +345,7 @@ func (client GroupClient) CreateOrUpdateByIDPreparer(resourceID string, paramete
 		"resourceId": resourceID,
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -445,7 +445,7 @@ func (client GroupClient) DeletePreparer(resourceGroupName string, resourceProvi
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -525,7 +525,7 @@ func (client GroupClient) DeleteByIDPreparer(resourceID string, cancel <-chan st
 		"resourceId": resourceID,
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -605,7 +605,7 @@ func (client GroupClient) GetPreparer(resourceGroupName string, resourceProvider
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -671,7 +671,7 @@ func (client GroupClient) GetByIDPreparer(resourceID string) (*http.Request, err
 		"resourceId": resourceID,
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -737,7 +737,7 @@ func (client GroupClient) ListPreparer(filter string, expand string, top *int32)
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -891,7 +891,7 @@ func (client GroupClient) ListByResourceGroupPreparer(resourceGroupName string, 
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -1064,7 +1064,7 @@ func (client GroupClient) MoveResourcesPreparer(sourceResourceGroupName string, 
 		"subscriptionId":          autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -1162,7 +1162,7 @@ func (client GroupClient) ValidateMoveResourcesPreparer(sourceResourceGroupName 
 		"subscriptionId":          autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

@@ -80,7 +80,7 @@ func (client PermissionsClient) ListForResourcePreparer(resourceGroupName string
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -215,7 +215,7 @@ func (client PermissionsClient) ListForResourceGroupPreparer(resourceGroupName s
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

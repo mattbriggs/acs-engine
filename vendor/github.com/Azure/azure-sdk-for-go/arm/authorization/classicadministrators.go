@@ -70,7 +70,7 @@ func (client ClassicAdministratorsClient) ListPreparer() (*http.Request, error) 
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

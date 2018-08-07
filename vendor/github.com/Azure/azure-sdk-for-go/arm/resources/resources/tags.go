@@ -71,7 +71,7 @@ func (client TagsClient) CreateOrUpdatePreparer(tagName string) (*http.Request, 
 		"tagName":        autorest.Encode("path", tagName),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -138,7 +138,7 @@ func (client TagsClient) CreateOrUpdateValuePreparer(tagName string, tagValue st
 		"tagValue":       autorest.Encode("path", tagValue),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -204,7 +204,7 @@ func (client TagsClient) DeletePreparer(tagName string) (*http.Request, error) {
 		"tagName":        autorest.Encode("path", tagName),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -270,7 +270,7 @@ func (client TagsClient) DeleteValuePreparer(tagName string, tagValue string) (*
 		"tagValue":       autorest.Encode("path", tagValue),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -332,7 +332,7 @@ func (client TagsClient) ListPreparer() (*http.Request, error) {
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

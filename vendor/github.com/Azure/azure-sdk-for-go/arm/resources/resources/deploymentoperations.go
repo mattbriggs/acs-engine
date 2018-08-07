@@ -86,7 +86,7 @@ func (client DeploymentOperationsClient) GetPreparer(resourceGroupName string, d
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -166,7 +166,7 @@ func (client DeploymentOperationsClient) ListPreparer(resourceGroupName string, 
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2017-05-10"
+	const APIVersion = "2017-08-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

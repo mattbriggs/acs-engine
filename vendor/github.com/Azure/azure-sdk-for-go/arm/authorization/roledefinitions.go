@@ -74,7 +74,7 @@ func (client RoleDefinitionsClient) CreateOrUpdatePreparer(scope string, roleDef
 		"scope":            scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -142,7 +142,7 @@ func (client RoleDefinitionsClient) DeletePreparer(scope string, roleDefinitionI
 		"scope":            scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -208,7 +208,7 @@ func (client RoleDefinitionsClient) GetPreparer(scope string, roleDefinitionID s
 		"scope":            scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -273,7 +273,7 @@ func (client RoleDefinitionsClient) GetByIDPreparer(roleDefinitionID string) (*h
 		"roleDefinitionId": roleDefinitionID,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -339,7 +339,7 @@ func (client RoleDefinitionsClient) ListPreparer(scope string, filter string) (*
 		"scope": scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

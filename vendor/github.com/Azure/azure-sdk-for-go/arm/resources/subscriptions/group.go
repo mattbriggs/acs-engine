@@ -71,7 +71,7 @@ func (client GroupClient) GetPreparer(subscriptionID string) (*http.Request, err
 		"subscriptionId": autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2016-06-01"
+	const APIVersion = "2018-02-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -130,7 +130,7 @@ func (client GroupClient) List() (result ListResult, err error) {
 
 // ListPreparer prepares the List request.
 func (client GroupClient) ListPreparer() (*http.Request, error) {
-	const APIVersion = "2016-06-01"
+	const APIVersion = "2018-02-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -265,7 +265,7 @@ func (client GroupClient) ListLocationsPreparer(subscriptionID string) (*http.Re
 		"subscriptionId": autorest.Encode("path", subscriptionID),
 	}
 
-	const APIVersion = "2016-06-01"
+	const APIVersion = "2018-02-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}

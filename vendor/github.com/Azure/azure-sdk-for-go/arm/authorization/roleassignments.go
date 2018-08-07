@@ -78,7 +78,7 @@ func (client RoleAssignmentsClient) CreatePreparer(scope string, roleAssignmentN
 		"scope":              scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -145,7 +145,7 @@ func (client RoleAssignmentsClient) CreateByIDPreparer(roleAssignmentID string, 
 		"roleAssignmentId": roleAssignmentID,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -214,7 +214,7 @@ func (client RoleAssignmentsClient) DeletePreparer(scope string, roleAssignmentN
 		"scope":              scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -279,7 +279,7 @@ func (client RoleAssignmentsClient) DeleteByIDPreparer(roleAssignmentID string) 
 		"roleAssignmentId": roleAssignmentID,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -345,7 +345,7 @@ func (client RoleAssignmentsClient) GetPreparer(scope string, roleAssignmentName
 		"scope":              scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -410,7 +410,7 @@ func (client RoleAssignmentsClient) GetByIDPreparer(roleAssignmentID string) (*h
 		"roleAssignmentId": roleAssignmentID,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -477,7 +477,7 @@ func (client RoleAssignmentsClient) ListPreparer(filter string) (*http.Request, 
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -623,7 +623,7 @@ func (client RoleAssignmentsClient) ListForResourcePreparer(resourceGroupName st
 		"subscriptionId":            autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -763,7 +763,7 @@ func (client RoleAssignmentsClient) ListForResourceGroupPreparer(resourceGroupNa
 		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
@@ -902,7 +902,7 @@ func (client RoleAssignmentsClient) ListForScopePreparer(scope string, filter st
 		"scope": scope,
 	}
 
-	const APIVersion = "2015-07-01"
+	const APIVersion = "2016-09-01"
 	queryParameters := map[string]interface{}{
 		"api-version": APIVersion,
 	}
