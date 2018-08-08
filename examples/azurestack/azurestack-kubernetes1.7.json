@@ -42,7 +42,8 @@
         "count": 2,
         "vmSize": "Standard_D1_v2",
         "availabilityProfile": "AvailabilitySet",
-		    "StorageProfile" : "StorageAccount"
+        "StorageProfile" : "StorageAccount",
+        "acceleratedNetworkingEnabled": false
       }
     ],
     "linuxProfile": {

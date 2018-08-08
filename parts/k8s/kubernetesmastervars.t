@@ -201,7 +201,7 @@
     "masterOffset": "[parameters('masterOffset')]",
 {{end}}
     "apiVersionDefault": "2015-06-15",
-    "apiVersionAcceleratedNetworking": "2018-04-01",
+    "apiVersionAcceleratedNetworking": "2017-10-01",
     "apiVersionLinkDefault": "2015-01-01",
     "locations": [
          "[resourceGroup().location]",
