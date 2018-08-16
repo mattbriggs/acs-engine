@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/Azure/acs-engine/pkg/armhelpers"
@@ -134,23 +134,14 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	return client, nil
 }
 
-func writeCloudProfile(dir string, file string, dc *deployCmd) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if e := os.MkdirAll(dir, 0700); e != nil {
-			fmt.Printf("Error [MkdirAll %s] : %v\n", dir, e)
-			return e
-		}
-	}
+func writeCloudProfile(dc *deployCmd) error {
 
-	path := path.Join(dir, file)
-	log.Infoln(fmt.Sprintf("Writing cloud profile to: %s", path))
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
+	file, err := ioutil.TempFile("", "azurestackcloud.json")
+	defer file.Close()
 	if err != nil {
-		fmt.Printf("Error [OpenFile %s] : %v\n", file, err)
-		return err
+		log.Fatal(err)
 	}
-	defer f.Close()
+	log.Infoln(fmt.Sprintf("Writing cloud profile to: %s", file.Name()))
 
 	// Build content for the file
 	content := `{
@@ -173,11 +164,11 @@ func writeCloudProfile(dir string, file string, dc *deployCmd) error {
 	"containerRegistryDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ContainerRegistryDNSSuffix + `"
     }`
 
-	if _, err = f.Write([]byte(content)); err != nil {
-		fmt.Printf("Error [Write %s] : %v\n", file, err)
+	if _, err = file.Write([]byte(content)); err != nil {
+		fmt.Printf("Error [Write %s] : %v\n", file.Name(), err)
 	}
 
-	os.Setenv("AZURE_ENVIRONMENT_FILEPATH", path)
+	os.Setenv("AZURE_ENVIRONMENT_FILEPATH", file.Name())
 
 	return nil
 }
