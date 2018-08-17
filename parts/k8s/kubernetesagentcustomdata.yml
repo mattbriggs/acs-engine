@@ -102,15 +102,6 @@ write_files:
   content: !!binary |
     {{WrapAsVariable "customSearchDomainsScript"}}
 {{end}}
-{{if IsMultipleMasters}}
-{{if IsAzureStackCloud}}
-    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "masterPublicLbFQDN"}}|g" "/var/lib/kubelet/kubeconfig"
-{{else}}
-    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
-{{end}}
-{{else}}
-    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
-{{end}}
 
 - path: "/var/lib/kubelet/kubeconfig"
   permissions: "0644"
@@ -168,6 +159,15 @@ AGENT_ARTIFACTS_CONFIG_PLACEHOLDER
     sed -i "s|<searchDomainName>|{{WrapAsVariable "searchDomainName"}}|g" "/opt/azure/containers/setup-custom-search-domains.sh"
     sed -i "s|<searchDomainRealmUser>|{{WrapAsVariable "searchDomainRealmUser"}}|g" "/opt/azure/containers/setup-custom-search-domains.sh"
     sed -i "s|<searchDomainRealmPassword>|{{WrapAsVariable "searchDomainRealmPassword"}}|g" "/opt/azure/containers/setup-custom-search-domains.sh"
+{{end}}
+{{if IsMultipleMasters}}
+{{if IsAzureStackCloud}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "masterPublicLbFQDN"}}|g" "/var/lib/kubelet/kubeconfig"
+{{else}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
+{{end}}
+{{else}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/var/lib/kubelet/kubeconfig"
 {{end}}
 
 - path: "/opt/azure/containers/provision.sh"
