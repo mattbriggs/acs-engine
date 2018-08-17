@@ -320,7 +320,16 @@ MASTER_ARTIFACTS_CONFIG_PLACEHOLDER
     sed -i "s|<kubernetesControllerManagerConfig>|{{GetK8sRuntimeConfigKeyVals .OrchestratorProfile.KubernetesConfig.ControllerManagerConfig}}|g" "/etc/kubernetes/manifests/kube-controller-manager.yaml"
     sed -i "s|<kubernetesAPIServerConfig>|{{GetK8sRuntimeConfigKeyVals .OrchestratorProfile.KubernetesConfig.APIServerConfig}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
     sed -i "s|<kubernetesSchedulerConfig>|{{GetK8sRuntimeConfigKeyVals .OrchestratorProfile.KubernetesConfig.SchedulerConfig}}|g" "/etc/kubernetes/manifests/kube-scheduler.yaml"
+{{if IsMultipleMasters}}
+{{if IsAzureStackCloud}}   
+    masterLBIP=`getent hosts  {{WrapAsVariable "masterPublicLbFQDN"}} |  cut -d " " -f1`
+    sed -i "s|<kubernetesAPIServerIP>|$masterLBIP|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
+{{else}}
     sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
+{{end}}
+{{else}}
+    sed -i "s|<kubernetesAPIServerIP>|{{WrapAsVariable "kubernetesAPIServerIP"}}|g" "/etc/kubernetes/manifests/kube-apiserver.yaml"
+{{end}}
 {{if not EnablePodSecurityPolicy}}
     sed -i "s|apparmor_parser|d|g" "/etc/systemd/system/kubelet.service"
 {{end}}
