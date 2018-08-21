@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -121,7 +122,9 @@ func (uc *upgradeCmd) loadCluster(cmd *cobra.Command) error {
 		return errors.Wrap(err, "Failed to get client")
 	}
 
-	_, err = uc.client.EnsureResourceGroup(uc.resourceGroupName, uc.location, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	defer cancel()
+	_, err = uc.client.EnsureResourceGroup(ctx, uc.resourceGroupName, uc.location, nil)
 	if err != nil {
 		return errors.Wrap(err, "Error ensuring resource group")
 	}
