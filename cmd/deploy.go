@@ -215,7 +215,7 @@ func (dc *deployCmd) loadAPIModel(cmd *cobra.Command, args []string) error {
 	// For Hybrid cloud we need to write the cloud profile locally.
 	if dc.containerService.Properties.CloudProfile != nil {
 		if strings.EqualFold(dc.containerService.Properties.CloudProfile.Name, "AzureStackCloud") {
-			writeCloudProfile(dc)
+			writeCloudProfile(dc.containerService)
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Azure/acs-engine/pkg/api"
 	"github.com/Azure/acs-engine/pkg/armhelpers"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/pkg/errors"
@@ -134,7 +135,7 @@ func (authArgs *authArgs) getClient() (*armhelpers.AzureClient, error) {
 	return client, nil
 }
 
-func writeCloudProfile(dc *deployCmd) error {
+func writeCloudProfile(cs *api.ContainerService) error {
 
 	file, err := ioutil.TempFile("", "azurestackcloud.json")
 	defer file.Close()
@@ -145,23 +146,23 @@ func writeCloudProfile(dc *deployCmd) error {
 
 	// Build content for the file
 	content := `{
-    "name": "` + dc.containerService.Properties.CloudProfile.Name + `",
-	"managementPortalURL": "` + dc.containerService.Properties.CloudProfile.ManagementPortalURL + `",
-	"publishSettingsURL": "` + dc.containerService.Properties.CloudProfile.PublishSettingsURL + `",
-	"serviceManagementEndpoint": "` + dc.containerService.Properties.CloudProfile.ServiceManagementEndpoint + `",
-	"resourceManagerEndpoint": "` + dc.containerService.Properties.CloudProfile.ResourceManagerEndpoint + `",
-	"activeDirectoryEndpoint": "` + dc.containerService.Properties.CloudProfile.ActiveDirectoryEndpoint + `",
-	"galleryEndpoint": "` + dc.containerService.Properties.CloudProfile.GalleryEndpoint + `",
-	"keyVaultEndpoint": "` + dc.containerService.Properties.CloudProfile.KeyVaultEndpoint + `",
-	"graphEndpoint": "` + dc.containerService.Properties.CloudProfile.GraphEndpoint + `",
-	"storageEndpointSuffix": "` + dc.containerService.Properties.CloudProfile.StorageEndpointSuffix + `",
-	"sQLDatabaseDNSSuffix": "` + dc.containerService.Properties.CloudProfile.SQLDatabaseDNSSuffix + `",
-	"trafficManagerDNSSuffix": "` + dc.containerService.Properties.CloudProfile.TrafficManagerDNSSuffix + `",
-	"keyVaultDNSSuffix": "` + dc.containerService.Properties.CloudProfile.KeyVaultDNSSuffix + `",
-	"serviceBusEndpointSuffix": "` + dc.containerService.Properties.CloudProfile.ServiceBusEndpointSuffix + `",
-	"serviceManagementVMDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ServiceManagementVMDNSSuffix + `",
-	"resourceManagerVMDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ResourceManagerVMDNSSuffix + `",
-	"containerRegistryDNSSuffix": "` + dc.containerService.Properties.CloudProfile.ContainerRegistryDNSSuffix + `"
+	"name": "` + cs.Properties.CloudProfile.Name + `",
+	"managementPortalURL": "` + cs.Properties.CloudProfile.ManagementPortalURL + `",
+	"publishSettingsURL": "` + cs.Properties.CloudProfile.PublishSettingsURL + `",
+	"serviceManagementEndpoint": "` + cs.Properties.CloudProfile.ServiceManagementEndpoint + `",
+	"resourceManagerEndpoint": "` + cs.Properties.CloudProfile.ResourceManagerEndpoint + `",
+	"activeDirectoryEndpoint": "` + cs.Properties.CloudProfile.ActiveDirectoryEndpoint + `",
+	"galleryEndpoint": "` + cs.Properties.CloudProfile.GalleryEndpoint + `",
+	"keyVaultEndpoint": "` + cs.Properties.CloudProfile.KeyVaultEndpoint + `",
+	"graphEndpoint": "` + cs.Properties.CloudProfile.GraphEndpoint + `",
+	"storageEndpointSuffix": "` + cs.Properties.CloudProfile.StorageEndpointSuffix + `",
+	"sQLDatabaseDNSSuffix": "` + cs.Properties.CloudProfile.SQLDatabaseDNSSuffix + `",
+	"trafficManagerDNSSuffix": "` + cs.Properties.CloudProfile.TrafficManagerDNSSuffix + `",
+	"keyVaultDNSSuffix": "` + cs.Properties.CloudProfile.KeyVaultDNSSuffix + `",
+	"serviceBusEndpointSuffix": "` + cs.Properties.CloudProfile.ServiceBusEndpointSuffix + `",
+	"serviceManagementVMDNSSuffix": "` + cs.Properties.CloudProfile.ServiceManagementVMDNSSuffix + `",
+	"resourceManagerVMDNSSuffix": "` + cs.Properties.CloudProfile.ResourceManagerVMDNSSuffix + `",
+	"containerRegistryDNSSuffix": "` + cs.Properties.CloudProfile.ContainerRegistryDNSSuffix + `"
     }`
 
 	if _, err = file.Write([]byte(content)); err != nil {

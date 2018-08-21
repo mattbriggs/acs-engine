@@ -89,11 +89,18 @@
       "apiVersion": "[variables('apiVersionStorageManagedDisks')]",
       "properties":
         {
+            {{if not IsAzureStackCloud}}
+            "managed" : "true",
+            {{end}}
             "platformFaultDomainCount": 2,
-            "platformUpdateDomainCount": 3,
-		"managed" : "true"
+            "platformUpdateDomainCount": 3
         },
-
+      {{if IsAzureStackCloud}}
+      "sku":
+        {
+            "name": "Aligned"
+        },
+      {{end}}
       "type": "Microsoft.Compute/availabilitySets"
     },
 {{else if .IsStorageAccount}}
