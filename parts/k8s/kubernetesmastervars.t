@@ -246,7 +246,7 @@
     "storageAccountBaseName": "",
 {{end}}
 {{if .HasManagedDisks}}
-    "apiVersionStorageManagedDisks": "2016-04-30-preview",
+    "apiVersionStorageManagedDisks": "2017-03-30",
 {{end}}
 {{if .HasVirtualMachineScaleSets}}
     "apiVersionVirtualMachineScaleSets": "2017-12-01",
