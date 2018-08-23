@@ -249,7 +249,11 @@
     "apiVersionStorageManagedDisks": "2017-03-30",
 {{end}}
 {{if .HasVirtualMachineScaleSets}}
-    "apiVersionVirtualMachineScaleSets": "2017-12-01",
+      {{if IsAzureStackCloud}}
+      "apiVersionVirtualMachineScaleSets": "2017-03-30",
+      {{else}}
+      "apiVersionVirtualMachineScaleSets": "2017-12-01",
+      {{end}}
 {{end}}
 {{if not IsHostedMaster}}
   {{if .MasterProfile.IsStorageAccount}}
