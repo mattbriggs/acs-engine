@@ -5,46 +5,42 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.11",
       "kubernetesConfig": {
-        "kubernetesImageBase": "msazurestackdocker/", 
+        "kubernetesImageBase": "msazurestackdocker/",
         "useInstanceMetadata": false,
         "networkPolicy": "none"
       }
-
     },
-       "cloudProfile": {
-        "name": "AzureStackCloud",
-        "managementPortalURL": "",
-        "publishSettingsURL": "",
-        "serviceManagementEndpoint": "https://management.azurestackci11.onmicrosoft.com/8d887891-6596-46c4-bdb6-1fbde1edbc7e",
-        "resourceManagerEndpoint": "https://management.local.azurestack.external",
-        "activeDirectoryEndpoint": "https://login.windows.net/",
-        "galleryEndpoint": "https://portal.local.azurestack.external:30015/",
-        "keyVaultEndpoint": "",
-        "graphEndpoint": "https://graph.windows.net/",
-        "storageEndpointSuffix": "local.azurestack.external",
-        "sqlDatabaseDNSSuffix": "",
-        "trafficManagerDNSSuffix": "",
-        "keyVaultDNSSuffix": "vault.local.azurestack.external",
-        "serviceBusEndpointSuffix": "",
-        "serviceManagementVMDNSSuffix": "cloudapp.net",
-        "resourceManagerVMDNSSuffix": "cloudapp.azurestack.external",
-        "containerRegistryDNSSuffix": "",
-        "resourceManagerRootCertificate": "D17697CC206ED26E1A51F5BB96E9356D6D610B74",
-        "location": "local"
-          },
+    "cloudProfile": {
+      "name": "AzureStackCloud",
+      "managementPortalURL": "",
+      "publishSettingsURL": "",
+      "serviceManagementEndpoint": "",
+      "resourceManagerEndpoint": "",
+      "activeDirectoryEndpoint": "",
+      "galleryEndpoint": "",
+      "keyVaultEndpoint": "",
+      "graphEndpoint": "",
+      "storageEndpointSuffix": "",
+      "sqlDatabaseDNSSuffix": "",
+      "trafficManagerDNSSuffix": "",
+      "keyVaultDNSSuffix": "",
+      "serviceBusEndpointSuffix": "",
+      "serviceManagementVMDNSSuffix": "",
+      "resourceManagerVMDNSSuffix": "",
+      "containerRegistryDNSSuffix": "",
+      "resourceManagerRootCertificate": "",
+      "location": ""
+    },
     "masterProfile": {
-      "count": 1,
-      "dnsPrefix": "k1111",
-      "vmSize": "Standard_D1_v2",
-      "StorageProfile" : "StorageAccount"
+      "count": 3,
+      "dnsPrefix": "",
+      "vmSize": "Standard_D2_v2"
     },
     "agentPoolProfiles": [
       {
         "name": "linuxpool2",
-        "count": 2,
-        "vmSize": "Standard_D1_v2",
-        "availabilityProfile": "AvailabilitySet",
-        "StorageProfile" : "StorageAccount",
+        "count": 3,
+        "vmSize": "Standard_D2_v2",
         "acceleratedNetworkingEnabled": false
       }
     ],
