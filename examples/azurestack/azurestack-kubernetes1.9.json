@@ -5,7 +5,8 @@
       "orchestratorType": "Kubernetes",
       "orchestratorRelease": "1.9",
       "kubernetesConfig": {
-        "CustomHyperkubeImage": "msazurestackdocker/k8s1.9:latest",
+        "kubernetesImageBase": "msazurestackdocker/", 
+        "useInstanceMetadata": false,
         "networkPolicy": "none"
       }
 
