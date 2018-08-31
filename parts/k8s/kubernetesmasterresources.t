@@ -184,7 +184,11 @@
         "dnsSettings": {
           "domainNameLabel": "[variables('masterFqdnPrefix')]"
         },
+        {{if IsAzureStack}}
+        "publicIPAllocationMethod": "Static"
+        {{else}}
         "publicIPAllocationMethod": "Dynamic"
+        {{end}}
       },
       "type": "Microsoft.Network/publicIPAddresses"
     },
@@ -560,7 +564,11 @@
           "dnsSettings": {
             "domainNameLabel": "[variables('masterFqdnPrefix')]"
           },
-          "publicIpAllocationMethod": "Dynamic"
+          {{if IsAzureStack}}
+          "publicIPAllocationMethod": "Static"
+          {{else}}
+          "publicIPAllocationMethod": "Dynamic"
+          {{end}}
       }
     },
     {
