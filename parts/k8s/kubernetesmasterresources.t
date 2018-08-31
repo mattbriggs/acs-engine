@@ -184,7 +184,7 @@
         "dnsSettings": {
           "domainNameLabel": "[variables('masterFqdnPrefix')]"
         },
-        {{if IsAzureStack}}
+        {{if IsAzureStackCloud}}
         "publicIPAllocationMethod": "Static"
         {{else}}
         "publicIPAllocationMethod": "Dynamic"
@@ -564,7 +564,7 @@
           "dnsSettings": {
             "domainNameLabel": "[variables('masterFqdnPrefix')]"
           },
-          {{if IsAzureStack}}
+          {{if IsAzureStackCloud}}
           "publicIPAllocationMethod": "Static"
           {{else}}
           "publicIPAllocationMethod": "Dynamic"
